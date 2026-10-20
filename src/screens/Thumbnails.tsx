@@ -1,7 +1,7 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { useStore, useThumbUrl } from '../data/store'
 import { href } from '../router'
-import { CHECKPOINTS, hasThumbSlot, stageInfo, type Video } from '../types'
+import { CHECKPOINTS, hasThumbSlot, stageInfo, type StatEntry, type Video } from '../types'
 import { Icon } from '../ui/icons'
 
 const imageFrom = (e: DragEvent) => [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
@@ -10,7 +10,11 @@ export function Thumbnails() {
   const { db } = useStore()
   const [needsOnly, setNeedsOnly] = useState(false)
 
-  const all = db.videos.filter((v) => hasThumbSlot(v.channel))
+  const ctrOf = (v: Video) => latestCtr(db.stats, v)?.pct ?? -1
+  // Published first, best click-through rate first, so the strongest thumbnails sit side by side.
+  const all = db.videos
+    .filter((v) => hasThumbSlot(v.channel))
+    .sort((a, b) => Number(b.stage === 'published') - Number(a.stage === 'published') || ctrOf(b) - ctrOf(a))
   const needs = all.filter((v) => !v.thumbnailPath)
   const shown = needsOnly ? needs : all
 
@@ -46,18 +50,17 @@ export function Thumbnails() {
 }
 
 // The most mature click-through rate logged for a video: 28 days, else 7 days, else 24 hours.
-function useLatestCtr(video: Video) {
-  const { db } = useStore()
+function latestCtr(stats: StatEntry[], video: Video) {
   for (const c of [...CHECKPOINTS].reverse()) {
-    const s = db.stats.find((x) => x.videoId === video.id && x.checkpoint === c.id)
+    const s = stats.find((x) => x.videoId === video.id && x.checkpoint === c.id)
     if (s?.ctrPct != null) return { pct: s.ctrPct, label: c.name }
   }
   return null
 }
 
 function ThumbCard({ video }: { video: Video }) {
-  const { setThumbnail } = useStore()
-  const ctr = useLatestCtr(video)
+  const { db, setThumbnail } = useStore()
+  const ctr = latestCtr(db.stats, video)
   const url = useThumbUrl(video)
   const stage = stageInfo(video.stage)
   const input = useRef<HTMLInputElement>(null)
@@ -101,19 +104,27 @@ function ThumbCard({ video }: { video: Video }) {
           e.target.value = ''
         }}
       />
+      {/* CTR sits in the same spot on every card, right under the image, so a row reads across. */}
+      <div className="thumb-ctr">
+        {ctr ? (
+          <>
+            <span className="thumb-ctr-num">{ctr.pct}%</span>
+            <span className="thumb-ctr-label">CTR at {ctr.label}</span>
+          </>
+        ) : video.stage === 'published' ? (
+          <a href={href({ name: 'stats' })} className="thumb-ctr-log">
+            Log CTR
+          </a>
+        ) : (
+          <span className="thumb-ctr-label">Not published yet</span>
+        )}
+      </div>
       <a href={href({ name: 'video', id: video.id })} className="thumb-meta">
         <span className="thumb-title">{video.title}</span>
         <span className="script-item-meta">
           <span className="stage-tag is-sm" style={{ background: stage.soft, color: stage.deep }}>
             {stage.name}
           </span>
-          {ctr ? (
-            <span className="ctr">
-              <strong>{ctr.pct}%</strong> CTR · {ctr.label}
-            </span>
-          ) : (
-            <span>{video.stage === 'published' ? 'No CTR logged' : 'Not published yet'}</span>
-          )}
         </span>
       </a>
     </div>

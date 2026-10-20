@@ -107,15 +107,16 @@ export function Stats() {
 function ReadyToLog({ episodes }: { episodes: Episode[] }) {
   const t = today()
   const soon = addDays(t, 7)
+  // One card per video: the newest check that's due. Older missed checks can still be filled in from the table.
   const items = episodes
-    .flatMap((e) =>
-      CHECKPOINTS.filter((c) => !e.stats[c.id]).map((c) => ({
-        video: e.video,
-        checkpoint: c,
-        due: addDays(e.video.publishDate!, c.days),
-      })),
-    )
-    .filter((x) => x.due <= soon)
+    .flatMap((e) => {
+      const open = CHECKPOINTS.filter((c) => !e.stats[c.id])
+        .map((c) => ({ video: e.video, checkpoint: c, due: addDays(e.video.publishDate!, c.days) }))
+        .filter((x) => x.due <= soon)
+      const pastDue = open.filter((x) => x.due <= t)
+      const pick = pastDue.length ? pastDue[pastDue.length - 1] : open[0]
+      return pick ? [{ ...pick, missed: pastDue.length - (pick.due <= t ? 1 : 0) }] : []
+    })
     .sort((a, b) => a.due.localeCompare(b.due))
 
   return (
@@ -132,7 +133,7 @@ function ReadyToLog({ episodes }: { episodes: Episode[] }) {
               key={x.video.id + x.checkpoint.id}
               video={x.video}
               checkpoint={x.checkpoint.id}
-              label={`${x.checkpoint.name} check · ${dueLabel(x.due)}`}
+              label={`${x.checkpoint.name} check · ${dueLabel(x.due)}${x.missed ? ` · ${x.missed} earlier ${x.missed === 1 ? 'check' : 'checks'} skipped` : ''}`}
               upcoming={x.due > t}
             />
           ))}
@@ -253,7 +254,7 @@ function ViewsChart({ episodes }: { episodes: Episode[] }) {
         <CheckpointPicker value={cp} onChange={setCp} label="Views checkpoint" />
       </div>
       <div className="bar-scroll">
-        <div className="bars" style={{ gridTemplateColumns: `repeat(${episodes.length}, minmax(56px, 1fr))` }}>
+        <div className="bars" style={{ gridTemplateColumns: `repeat(${episodes.length}, minmax(96px, 1fr))` }}>
           {episodes.map((e, i) => {
             const v = values[i]
             const tip = `${e.video.title}: ${v == null ? 'not logged' : `${fmtViews(v)} engaged views`} at ${cpName}`
@@ -265,9 +266,12 @@ function ViewsChart({ episodes }: { episodes: Episode[] }) {
             )
           })}
         </div>
-        <div className="bar-labels" style={{ gridTemplateColumns: `repeat(${episodes.length}, minmax(56px, 1fr))` }}>
+        <div className="bar-labels" style={{ gridTemplateColumns: `repeat(${episodes.length}, minmax(96px, 1fr))` }}>
           {episodes.map((e) => (
-            <span key={e.video.id}>{shortDate(e.video.publishDate!)}</span>
+            <span key={e.video.id}>
+              <span className="bar-label-title">{e.video.title}</span>
+              {shortDate(e.video.publishDate!)}
+            </span>
           ))}
         </div>
       </div>
@@ -306,7 +310,7 @@ function RetentionPanel({ episodes }: { episodes: Episode[] }) {
           const v = e.stats[cp]?.retentionPct
           return (
             <div key={e.video.id} className="ret-row" title={e.video.title}>
-              <span className="row-sub">{shortDate(e.video.publishDate!)}</span>
+              <span className="row-sub ret-name">{e.video.title}</span>
               <div className="ret-track" aria-hidden="true">
                 <div className="ret-band" style={{ left: `${TARGET_LOW}%`, width: `${TARGET_HIGH - TARGET_LOW}%` }} />
                 <div className="ret-fill" style={{ width: `${Math.min(100, v ?? 0)}%` }} />
@@ -323,9 +327,9 @@ function RetentionPanel({ episodes }: { episodes: Episode[] }) {
 
 function StatsTable({ episodes }: { episodes: Episode[] }) {
   const [editing, setEditing] = useState<{ video: Video; checkpoint: Checkpoint } | null>(null)
-  const cell = (e: Episode, c: Checkpoint, kind: 'views' | 'ret') => {
+  const cell = (e: Episode, c: Checkpoint, kind: 'views' | 'ret' | 'ctr') => {
     const s = e.stats[c]
-    const text = kind === 'views' ? fmtViews(s?.engagedViews) : fmtPct(s?.retentionPct)
+    const text = kind === 'views' ? fmtViews(s?.engagedViews) : fmtPct(kind === 'ret' ? s?.retentionPct : s?.ctrPct)
     return (
       <td key={c + kind}>
         <button type="button" className="cell-btn" onClick={() => setEditing({ video: e.video, checkpoint: c })} aria-label={`Edit ${c} numbers for ${e.video.title}`}>
@@ -351,6 +355,9 @@ function StatsTable({ episodes }: { episodes: Episode[] }) {
               <th scope="col">Retention 24h</th>
               <th scope="col">Retention 7d</th>
               <th scope="col">Retention 28d</th>
+              <th scope="col">CTR 24h</th>
+              <th scope="col">CTR 7d</th>
+              <th scope="col">CTR 28d</th>
             </tr>
           </thead>
           <tbody>
@@ -362,6 +369,7 @@ function StatsTable({ episodes }: { episodes: Episode[] }) {
                 </th>
                 {CHECKPOINTS.map((c) => cell(e, c.id, 'views'))}
                 {CHECKPOINTS.map((c) => cell(e, c.id, 'ret'))}
+                {CHECKPOINTS.map((c) => cell(e, c.id, 'ctr'))}
               </tr>
             ))}
           </tbody>

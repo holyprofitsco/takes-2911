@@ -154,7 +154,9 @@ function StatsPanel({ video }: { video: Video }) {
               {e ? (
                 <>
                   <span className="value">{e.engagedViews.toLocaleString()} views</span>
-                  <span className="label">{e.retentionPct}% retention</span>
+                  <span className="label">
+                    {e.retentionPct}% retention{e.ctrPct != null && ` · ${e.ctrPct}% CTR`}
+                  </span>
                 </>
               ) : (
                 <span className="muted-text">Not yet</span>
@@ -213,9 +215,9 @@ function StagePanel({ video }: { video: Video }) {
           Move to {next.name}
         </button>
       ) : (
-        <div className="btn btn-done" aria-live="polite">
-          Published
-        </div>
+        <p className="stage-final" aria-live="polite">
+          All stages done.
+        </p>
       )}
     </section>
   )
@@ -227,9 +229,11 @@ function DetailsPanel({ video }: { video: Video }) {
     <section className="panel details">
       <label className="detail-row">
         <span className="detail-label">Title</span>
-        <input
-          className="inline-input"
+        <textarea
+          className="inline-input title-input"
+          rows={2}
           value={video.title}
+          onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
           onChange={(e) => updateVideo(video.id, { title: e.target.value })}
         />
       </label>
