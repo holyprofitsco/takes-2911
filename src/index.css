@@ -1692,6 +1692,11 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+/* One checkpoint at a time needs half the columns. */
+.stats-table.is-compact {
+  min-width: 600px;
+}
+
 .stats-table thead th {
   background: var(--panel);
   color: var(--muted);

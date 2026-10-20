@@ -476,8 +476,17 @@ function RetentionPanel({ episodes }: { episodes: Episode[] }) {
   )
 }
 
+type TableView = Checkpoint | 'all'
+const TABLE_VIEWS: { id: TableView; name: string }[] = [
+  { id: '24h', name: '24h' },
+  { id: '28d', name: '28 days' },
+  { id: 'all', name: 'All' },
+]
+
 function StatsTable({ episodes }: { episodes: Episode[] }) {
   const [editing, setEditing] = useState<{ video: Video; checkpoint: Checkpoint } | null>(null)
+  const [view, setView] = useState<TableView>('24h')
+  const shown = view === 'all' ? CHECKPOINTS : CHECKPOINTS.filter((c) => c.id === view)
   const cell = (e: Episode, c: Checkpoint, m: (typeof METRICS)[number]) => {
     const v = e.stats[c]?.[m.key]
     const text = m.pct ? fmtPct(v) : fmtViews(v)
@@ -492,18 +501,27 @@ function StatsTable({ episodes }: { episodes: Episode[] }) {
 
   return (
     <section aria-labelledby="table-title" className="stats-section">
-      <h2 id="table-title" className="section-title">
-        All videos
-      </h2>
+      <div className="chart-head">
+        <h2 id="table-title" className="section-title">
+          All videos
+        </h2>
+        <div className="segmented is-small" role="group" aria-label="Table checkpoint">
+          {TABLE_VIEWS.map((t) => (
+            <button key={t.id} type="button" className={view === t.id ? 'is-active' : ''} aria-pressed={view === t.id} onClick={() => setView(t.id)}>
+              {t.name}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="table-wrap">
-        <table className="stats-table">
+        <table className={'stats-table' + (view === 'all' ? '' : ' is-compact')}>
           <thead>
             <tr>
               <th scope="col">Video</th>
               {METRICS.flatMap((m) =>
-                CHECKPOINTS.map((c) => (
+                shown.map((c) => (
                   <th key={m.key + c.id} scope="col">
-                    {m.short} {c.id}
+                    {view === 'all' ? `${m.short} ${c.id}` : m.short}
                   </th>
                 )),
               )}
@@ -516,7 +534,7 @@ function StatsTable({ episodes }: { episodes: Episode[] }) {
                   <a href={href({ name: 'video', id: e.video.id })}>{e.video.title}</a>
                   <span className="row-sub">{shortDate(e.video.publishDate!)}</span>
                 </th>
-                {METRICS.flatMap((m) => CHECKPOINTS.map((c) => cell(e, c.id, m)))}
+                {METRICS.flatMap((m) => shown.map((c) => cell(e, c.id, m)))}
               </tr>
             ))}
           </tbody>
