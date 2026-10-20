@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { useStore } from '../data/store'
+import { useRef, useState } from 'react'
+import { useStore, useThumbUrl } from '../data/store'
 import { href } from '../router'
-import { CHANNELS, CHECKPOINTS, type Channel, type Checkpoint, type StatEntry, type Video } from '../types'
+import { CHANNELS, CHECKPOINTS, hasThumbSlot, type Channel, type Checkpoint, type StatEntry, type Video } from '../types'
 import { Icon } from '../ui/icons'
 
 const TARGET_LOW = 40
@@ -104,13 +104,23 @@ export function Stats() {
   )
 }
 
+interface DueItem {
+  video: Video
+  checkpoint: (typeof CHECKPOINTS)[number]
+  due: string
+  missed: number
+}
+
 function ReadyToLog({ episodes }: { episodes: Episode[] }) {
   const t = today()
   const soon = addDays(t, 7)
-  // One card per video: the newest check that's due. Older missed checks can still be filled in from the table.
-  const items = episodes
+  const [queue, setQueue] = useState<DueItem[] | null>(null)
+  // One item per video: the newest check that's due. Older missed checks can still be filled in from the table.
+  const items: DueItem[] = episodes
     .flatMap((e) => {
-      const open = CHECKPOINTS.filter((c) => !e.stats[c.id])
+      // Once a later check is logged, the earlier ones are past saving, so they drop off.
+      const lastLogged = Math.max(-1, ...CHECKPOINTS.map((c, n) => (e.stats[c.id] ? n : -1)))
+      const open = CHECKPOINTS.filter((c, n) => n > lastLogged && !e.stats[c.id])
         .map((c) => ({ video: e.video, checkpoint: c, due: addDays(e.video.publishDate!, c.days) }))
         .filter((x) => x.due <= soon)
       const pastDue = open.filter((x) => x.due <= t)
@@ -118,54 +128,185 @@ function ReadyToLog({ episodes }: { episodes: Episode[] }) {
       return pick ? [{ ...pick, missed: pastDue.length - (pick.due <= t ? 1 : 0) }] : []
     })
     .sort((a, b) => a.due.localeCompare(b.due))
+  const due = items.filter((x) => x.due <= t)
+  const next = items.find((x) => x.due > t)
 
   return (
     <section className="stats-section" aria-labelledby="ready-title">
-      <h2 id="ready-title" className="section-title">
+      <h2 id="ready-title" className="visually-hidden">
         Ready to log
       </h2>
-      {items.length === 0 ? (
-        <p className="muted-text">You're all caught up. Nothing is due this week.</p>
-      ) : (
-        <div className="ready-list">
-          {items.map((x) => (
-            <ReadyCard
-              key={x.video.id + x.checkpoint.id}
-              video={x.video}
-              checkpoint={x.checkpoint.id}
-              label={`${x.checkpoint.name} check · ${dueLabel(x.due)}${x.missed ? ` · ${x.missed} earlier ${x.missed === 1 ? 'check' : 'checks'} skipped` : ''}`}
-              upcoming={x.due > t}
-            />
-          ))}
+      <div className="log-summary">
+        <div className="log-summary-count">
+          <span className="log-summary-num">{due.length}</span>
+          <div className="ready-text">
+            <span className="ready-title">
+              {due.length === 0 ? "You're all caught up" : due.length === 1 ? 'video ready to log' : 'videos ready to log'}
+            </span>
+            <span className="row-sub">
+              {due.length > 0
+                ? due.map((x) => x.video.title).join(', ')
+                : next
+                  ? `Next: ${next.video.title}, ${next.checkpoint.name} check ${dueLabel(next.due)}`
+                  : 'Nothing is due this week.'}
+            </span>
+          </div>
         </div>
-      )}
+        {due.length > 0 && (
+          <button type="button" className="btn" onClick={() => setQueue(due)}>
+            Start logging
+          </button>
+        )}
+      </div>
+      {queue && <LogWalkthrough queue={queue} onClose={() => setQueue(null)} />}
     </section>
   )
 }
 
-function ReadyCard({ video, checkpoint, label, upcoming }: { video: Video; checkpoint: Checkpoint; label: string; upcoming: boolean }) {
-  const [open, setOpen] = useState(false)
+// Steps through each due video one at a time: thumbnail if it's missing, then the numbers.
+function LogWalkthrough({ queue, onClose }: { queue: DueItem[]; onClose: () => void }) {
+  const { logStat, setThumbnail } = useStore()
+  const [i, setI] = useState(0)
+  const [saved, setSaved] = useState(0)
+  const [views, setViews] = useState('')
+  const [ret, setRet] = useState('')
+  const [ctr, setCtr] = useState('')
+  const item = queue[i]
+  const done = i >= queue.length
+
+  const viewsNum = Number(views.replace(/[,\s]/g, ''))
+  const retNum = Number(ret.replace('%', ''))
+  const ctrNum = ctr.trim() === '' ? undefined : Number(ctr.replace('%', ''))
+  const valid = views.trim() !== '' && ret.trim() !== '' && Number.isFinite(viewsNum) && viewsNum >= 0 && retNum >= 0 && retNum <= 100 && (ctrNum === undefined || (ctrNum >= 0 && ctrNum <= 100))
+
+  const advance = () => {
+    setViews('')
+    setRet('')
+    setCtr('')
+    setI((n) => n + 1)
+  }
+
   return (
-    <div className="ready-card">
-      <div className="ready-head">
-        <div className="ready-text">
-          <span className="ready-title">{video.title}</span>
-          <span className="row-sub">{label}</span>
-        </div>
-        {upcoming ? (
-          <span className="stage-tag" style={{ background: '#F0EFF1', color: '#5E5A63', fontWeight: 500 }}>
-            Upcoming
-          </span>
-        ) : (
-          !open && (
-            <button type="button" className="btn-outline" onClick={() => setOpen(true)}>
-              Log numbers
+    <div className="dialog-backdrop" onClick={onClose}>
+      <div className="dialog walk" role="dialog" aria-modal="true" aria-labelledby="walk-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+        {done ? (
+          <div className="walk-done" role="status">
+            <span className="walk-done-icon">
+              <Icon name="check" size={22} stroke={2} color="#FFFFFF" />
+            </span>
+            <h2 id="walk-title">{saved === 0 ? 'Nothing logged' : saved === 1 ? '1 video logged' : `${saved} videos logged`}</h2>
+            <p className="row-sub">{saved < queue.length ? `${queue.length - saved} skipped. They'll stay in your count.` : "You're all caught up."}</p>
+            <button type="button" className="btn" onClick={onClose}>
+              Done
             </button>
-          )
+          </div>
+        ) : (
+          <>
+            <div className="walk-top">
+              <span className="row-sub">
+                Video {i + 1} of {queue.length}
+              </span>
+              <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+            <div className="walk-progress" aria-hidden="true">
+              {queue.map((q, n) => (
+                <span key={q.video.id} className={n < i ? 'is-done' : n === i ? 'is-current' : ''} />
+              ))}
+            </div>
+            <WalkThumb video={item.video} onFile={(f) => setThumbnail(item.video.id, f)} />
+            <div className="ready-text">
+              <h2 id="walk-title">{item.video.title}</h2>
+              <span className="row-sub">
+                {item.checkpoint.name} check · {dueLabel(item.due)}
+              </span>
+            </div>
+            <form
+              className="walk-form"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (!valid) return
+                logStat(item.video.id, item.checkpoint.id, Math.round(viewsNum), Math.round(retNum * 10) / 10, ctrNum === undefined ? undefined : Math.round(ctrNum * 10) / 10)
+                setSaved((n) => n + 1)
+                advance()
+              }}
+            >
+              <div className="walk-fields">
+                <label className="log-field">
+                  Engaged views
+                  <input inputMode="numeric" placeholder="e.g. 1,020" value={views} onChange={(e) => setViews(e.target.value)} autoFocus />
+                </label>
+                <label className="log-field">
+                  Retention %
+                  <input inputMode="decimal" placeholder="e.g. 44" value={ret} onChange={(e) => setRet(e.target.value)} />
+                </label>
+                <label className="log-field">
+                  CTR %
+                  <input inputMode="decimal" placeholder="Optional" value={ctr} onChange={(e) => setCtr(e.target.value)} />
+                </label>
+              </div>
+              <div className="walk-actions">
+                <button type="button" className="btn-quiet" onClick={advance}>
+                  Skip for now
+                </button>
+                <button type="submit" className="btn" disabled={!valid}>
+                  {i === queue.length - 1 ? 'Save and finish' : 'Save and next'}
+                </button>
+              </div>
+            </form>
+          </>
         )}
       </div>
-      {open && <LogForm video={video} checkpoint={checkpoint} onDone={() => setOpen(false)} />}
     </div>
+  )
+}
+
+function WalkThumb({ video, onFile }: { video: Video; onFile: (f: File) => void }) {
+  const url = useThumbUrl(video)
+  const input = useRef<HTMLInputElement>(null)
+  const [over, setOver] = useState(false)
+  if (!hasThumbSlot(video.channel)) return null
+  return (
+    <>
+      {url ? (
+        <img src={url} alt="" className="walk-thumb" />
+      ) : (
+        <button
+          type="button"
+          className={'walk-thumb is-empty' + (over ? ' is-over' : '')}
+          onClick={() => input.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setOver(true)
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setOver(false)
+            const file = [...e.dataTransfer.files].find((f) => f.type.startsWith('image/'))
+            if (file) onFile(file)
+          }}
+        >
+          <Icon name="upload" size={18} />
+          <span>
+            <strong>Add thumbnail</strong>
+            <span className="row-sub">Drop an image here or tap to choose</span>
+          </span>
+        </button>
+      )}
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) onFile(file)
+          e.target.value = ''
+        }}
+      />
+    </>
   )
 }
 
