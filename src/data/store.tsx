@@ -1,14 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { del, get, set } from 'idb-keyval'
 import type { Channel, Checkpoint, Db, Session, Stage, Task, Video } from '../types'
+import { thumbKey, useCloudSync, type SyncStatus } from './cloud'
+import { SignIn } from '../screens/SignIn'
 
-// Local-first storage in the browser (IndexedDB). This is the single place that
-// reads and writes data, so syncing later only has to change this file.
+// Local-first storage in the browser (IndexedDB), synced to Supabase when signed in.
+// This is the single place that reads and writes data.
 const DB_KEY = 'takes-db-v1'
-const thumbKey = (videoId: string) => `thumb:${videoId}`
 
 interface Store {
   db: Db
+  sync: { status: SyncStatus; email?: string; signOut: () => Promise<void> }
+  thumbVersion: number // bumped when thumbnails arrive from another device, so images reload
   addVideo: (title: string, channel: Channel) => Video
   updateVideo: (id: string, patch: Partial<Video>) => void
   moveVideo: (id: string, stage: Stage, index?: number) => void
@@ -79,6 +82,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (db) set(DB_KEY, db)
   }, [db])
 
+  const cloud = useCloudSync(db, setDb)
+  const { noteThumb } = cloud
+
   const mutate = useCallback((fn: (d: Db) => Db) => setDb((d) => (d ? fn(d) : d)), [])
 
   const addVideo = useCallback(
@@ -125,9 +131,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     async (id: string, file: Blob | null) => {
       if (file) await set(thumbKey(id), file)
       else await del(thumbKey(id))
-      updateVideo(id, { thumbnailPath: file ? `${thumbKey(id)}@${Date.now()}` : undefined })
+      const thumbnailPath = file ? `${thumbKey(id)}@${Date.now()}` : undefined
+      noteThumb(id, thumbnailPath)
+      updateVideo(id, { thumbnailPath })
     },
-    [updateVideo],
+    [updateVideo, noteThumb],
   )
 
   const deleteVideo = useCallback(
@@ -204,6 +212,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const incoming = data.videos.map((v) =>
         data.thumbnails?.[v.id] ? { ...v, thumbnailPath: `${thumbKey(v.id)}@${stamp}` } : v,
       )
+      for (const v of incoming) if (data.thumbnails?.[v.id]) noteThumb(v.id, v.thumbnailPath)
       // Same ids replace what's there, so importing the same file twice doesn't duplicate.
       const merge = <T extends { id: string }>(old: T[], add: T[] = []) => {
         const ids = new Set(add.map((x) => x.id))
@@ -217,7 +226,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }))
       return incoming.length
     },
-    [mutate],
+    [mutate, noteThumb],
   )
 
   const exportFile = useCallback(async () => {
@@ -236,9 +245,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return new Blob([JSON.stringify(out)], { type: 'application/json' })
   }, [db])
 
-  if (!db) return null
+  if (!db || cloud.status === 'loading') return null
+  if (cloud.status === 'signed-out') return <SignIn signIn={cloud.signIn} signUp={cloud.signUp} />
+  const sync = { status: cloud.status, email: cloud.email, signOut: cloud.signOut }
   return (
-    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo, saveScript, saveSession, deleteSession, logStat, importFile, exportFile }}>
+    <StoreContext.Provider value={{ db, sync, thumbVersion: cloud.thumbVersion, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo, saveScript, saveSession, deleteSession, logStat, importFile, exportFile }}>
       {children}
     </StoreContext.Provider>
   )
@@ -252,6 +263,7 @@ export function useStore() {
 
 // Loads a stored thumbnail as an object URL for <img src>.
 export function useThumbUrl(video: Video) {
+  const { thumbVersion } = useStore()
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
     if (!video.thumbnailPath) {
@@ -269,6 +281,6 @@ export function useThumbUrl(video: Video) {
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [video.id, video.thumbnailPath])
+  }, [video.id, video.thumbnailPath, thumbVersion])
   return url
 }

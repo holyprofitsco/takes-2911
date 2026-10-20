@@ -180,13 +180,27 @@ function PhoneList({ byStage }: { byStage: (s: Stage) => Video[] }) {
 const channelLabel = (v: Video) =>
   v.channel === 'youtube' ? 'YouTube · Long-form' : channelInfo(v.channel).name
 
+const SYNC_LABEL: Record<string, string> = {
+  syncing: 'Saving…',
+  synced: 'Saved to your account',
+  offline: 'Offline. Changes are kept on this device and save when you reconnect.',
+}
+
 function BackupLinks() {
-  const { importFile, exportFile } = useStore()
+  const { importFile, exportFile, sync } = useStore()
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState('')
 
   return (
     <div className="backup">
+      <span className={'sync-state is-' + sync.status} role="status">
+        <span className="sync-dot" aria-hidden="true" />
+        {SYNC_LABEL[sync.status]}
+        {sync.email && <span className="sync-email"> · {sync.email}</span>}
+      </span>
+      <button type="button" className="btn-quiet" onClick={sync.signOut}>
+        Sign out
+      </button>
       <button type="button" className="btn-quiet" onClick={() => input.current?.click()}>
         Import file
       </button>

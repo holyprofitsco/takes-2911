@@ -2628,3 +2628,75 @@ textarea {
 .cal-items:not(:has(.cal-card)) {
   display: none;
 }
+
+/* ---------- Sign in & sync ---------- */
+.signin {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.signin-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.signin-card h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 8px 0 0;
+}
+
+.signin-card .row-sub {
+  margin: -8px 0 4px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.signin-card .btn {
+  min-height: 48px;
+}
+
+.signin-message {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--panel);
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.sync-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+
+.sync-state.is-synced .sync-dot {
+  background: var(--ink);
+}
+
+.sync-state.is-offline .sync-dot {
+  background: var(--rose-deep);
+}
+
+.sync-email {
+  color: var(--muted);
+}
