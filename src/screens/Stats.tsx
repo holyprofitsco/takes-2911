@@ -107,15 +107,16 @@ export function Stats() {
 function ReadyToLog({ episodes }: { episodes: Episode[] }) {
   const t = today()
   const soon = addDays(t, 7)
+  // One card per video: the newest check that's due. Older missed checks can still be filled in from the table.
   const items = episodes
-    .flatMap((e) =>
-      CHECKPOINTS.filter((c) => !e.stats[c.id]).map((c) => ({
-        video: e.video,
-        checkpoint: c,
-        due: addDays(e.video.publishDate!, c.days),
-      })),
-    )
-    .filter((x) => x.due <= soon)
+    .flatMap((e) => {
+      const open = CHECKPOINTS.filter((c) => !e.stats[c.id])
+        .map((c) => ({ video: e.video, checkpoint: c, due: addDays(e.video.publishDate!, c.days) }))
+        .filter((x) => x.due <= soon)
+      const pastDue = open.filter((x) => x.due <= t)
+      const pick = pastDue.length ? pastDue[pastDue.length - 1] : open[0]
+      return pick ? [{ ...pick, missed: pastDue.length - (pick.due <= t ? 1 : 0) }] : []
+    })
     .sort((a, b) => a.due.localeCompare(b.due))
 
   return (
@@ -132,7 +133,7 @@ function ReadyToLog({ episodes }: { episodes: Episode[] }) {
               key={x.video.id + x.checkpoint.id}
               video={x.video}
               checkpoint={x.checkpoint.id}
-              label={`${x.checkpoint.name} check · ${dueLabel(x.due)}`}
+              label={`${x.checkpoint.name} check · ${dueLabel(x.due)}${x.missed ? ` · ${x.missed} earlier ${x.missed === 1 ? 'check' : 'checks'} skipped` : ''}`}
               upcoming={x.due > t}
             />
           ))}
@@ -157,7 +158,7 @@ function ReadyCard({ video, checkpoint, label, upcoming }: { video: Video; check
           </span>
         ) : (
           !open && (
-            <button type="button" className="btn" onClick={() => setOpen(true)}>
+            <button type="button" className="btn-outline" onClick={() => setOpen(true)}>
               Log numbers
             </button>
           )
