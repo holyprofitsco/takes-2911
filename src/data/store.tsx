@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { del, get, set } from 'idb-keyval'
-import type { Channel, Db, Stage, Video } from '../types'
+import type { Channel, Checkpoint, Db, Stage, Video } from '../types'
 
 // Local-first storage in the browser (IndexedDB). This is the single place that
 // reads and writes data, so syncing later only has to change this file.
@@ -15,6 +15,7 @@ interface Store {
   setThumbnail: (id: string, file: Blob | null) => Promise<void>
   deleteVideo: (id: string) => void
   saveScript: (videoId: string, body: string) => void
+  logStat: (videoId: string, checkpoint: Checkpoint, engagedViews: number, retentionPct: number) => void
   importFile: (file: File) => Promise<number>
   exportFile: () => Promise<Blob>
 }
@@ -145,6 +146,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [mutate],
   )
 
+  // One entry per (video, checkpoint); logging again replaces it.
+  const logStat = useCallback(
+    (videoId: string, checkpoint: Checkpoint, engagedViews: number, retentionPct: number) =>
+      mutate((d) => {
+        const loggedAt = new Date().toISOString()
+        const others = d.stats.filter((s) => !(s.videoId === videoId && s.checkpoint === checkpoint))
+        return { ...d, stats: [...others, { id: newId(), videoId, checkpoint, engagedViews, retentionPct, loggedAt }] }
+      }),
+    [mutate],
+  )
+
   const importFile = useCallback(
     async (file: File) => {
       const data = JSON.parse(await file.text()) as TakesFile
@@ -190,7 +202,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   if (!db) return null
   return (
-    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo, saveScript, importFile, exportFile }}>
+    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo, saveScript, logStat, importFile, exportFile }}>
       {children}
     </StoreContext.Provider>
   )
