@@ -1,12 +1,15 @@
 import { StoreProvider } from './data/store'
 import { useRoute } from './router'
 import { ComingSoon } from './screens/ComingSoon'
+import { ReadingMode } from './screens/ReadingMode'
+import { Scripts } from './screens/Scripts'
 import { Content } from './screens/Content'
 import { VideoDetail } from './screens/VideoDetail'
 import { Shell } from './ui/Shell'
 
 function Screen() {
   const route = useRoute()
+  if (route.name === 'read') return <ReadingMode id={route.id} from={route.from} />
   let screen
   switch (route.name) {
     case 'content':
@@ -17,7 +20,7 @@ function Screen() {
       screen = <VideoDetail id={route.id} />
       break
     case 'scripts':
-      screen = <ComingSoon title="Scripts" note="The script editor and reading mode are next on the build list." />
+      screen = <Scripts id={route.id} from={route.from} />
       break
     case 'stats':
       screen = <ComingSoon title="Stats" note="Engaged views and retention tracking are coming in a later step." />

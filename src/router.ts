@@ -1,21 +1,29 @@
 import { useEffect, useState } from 'react'
 
-// Tiny hash router: #/content, #/calendar, #/video/<id>, #/scripts, #/stats, #/thumbnails
+// Tiny hash router: #/content, #/calendar, #/video/<id>, #/scripts[/<videoId>], #/read/<videoId>,
+// #/stats, #/thumbnails. A trailing ?from=video means "opened from the video page", so screens
+// can offer a way back there.
 export type Route =
   | { name: 'content' }
   | { name: 'calendar' }
   | { name: 'video'; id: string }
-  | { name: 'scripts' }
+  | { name: 'scripts'; id?: string; from?: 'video' }
+  | { name: 'read'; id: string; from?: 'video' }
   | { name: 'stats' }
   | { name: 'thumbnails' }
 
 function parse(hash: string): Route {
-  const [, first, second] = hash.replace(/^#/, '').split('/')
+  const [path, query = ''] = hash.replace(/^#/, '').split('?')
+  const [, first, second] = path.split('/')
+  const from = new URLSearchParams(query).get('from') === 'video' ? ('video' as const) : undefined
   switch (first) {
     case 'video':
       return second ? { name: 'video', id: second } : { name: 'content' }
-    case 'calendar':
     case 'scripts':
+      return { name: 'scripts', id: second || undefined, from }
+    case 'read':
+      return second ? { name: 'read', id: second, from } : { name: 'scripts' }
+    case 'calendar':
     case 'stats':
     case 'thumbnails':
       return { name: first }
@@ -24,7 +32,18 @@ function parse(hash: string): Route {
   }
 }
 
-export const href = (r: Route) => (r.name === 'video' ? `#/video/${r.id}` : `#/${r.name}`)
+export function href(r: Route) {
+  switch (r.name) {
+    case 'video':
+      return `#/video/${r.id}`
+    case 'scripts':
+      return `#/scripts${r.id ? `/${r.id}` : ''}${r.from ? `?from=${r.from}` : ''}`
+    case 'read':
+      return `#/read/${r.id}${r.from ? `?from=${r.from}` : ''}`
+    default:
+      return `#/${r.name}`
+  }
+}
 
 export function navigate(r: Route) {
   window.location.hash = href(r)

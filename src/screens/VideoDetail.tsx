@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore, useThumbUrl } from '../data/store'
-import { navigate } from '../router'
+import { href, navigate } from '../router'
 import { CHECKPOINTS, CHANNELS, STAGES, channelInfo, hasThumbSlot, stageInfo, type Channel, type Video } from '../types'
 import { Icon, channelIcon } from '../ui/icons'
 
@@ -119,11 +119,11 @@ function ScriptPanel({ video }: { video: Video }) {
           Script
         </h2>
         <div className="panel-actions">
-          <a href="#/scripts" className="btn-outline">
+          <a href={href({ name: 'scripts', id: video.id, from: 'video' })} className="btn-outline">
             {script ? 'Open script' : 'Write script'}
           </a>
           {script && (
-            <a href="#/scripts" className="btn-pill">
+            <a href={href({ name: 'read', id: video.id, from: 'video' })} className="btn-pill">
               <Icon name="mic" size={16} />
               Record
             </a>

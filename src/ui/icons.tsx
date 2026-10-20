@@ -19,6 +19,7 @@ export const ICONS = {
   mic: 'M9 6a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0zM5 11a7 7 0 0 0 14 0M12 18v3',
   filter: 'M4 6h16M7 12h10M10 18h4',
   close: 'M6 6l12 12M18 6L6 18',
+  search: 'M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14zM20 20l-4-4',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
 } as const
 

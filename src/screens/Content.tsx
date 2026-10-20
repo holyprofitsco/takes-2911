@@ -4,6 +4,7 @@ import { href, navigate } from '../router'
 import { CHANNELS, STAGES, channelInfo, type Channel, type Stage, type Video } from '../types'
 import { Icon, channelIcon } from '../ui/icons'
 import { CardThumb, RowThumb } from '../ui/Thumb'
+import { NewIdeaDialog } from '../ui/NewIdeaDialog'
 import { Calendar } from './Calendar'
 
 type View = 'board' | 'calendar'
@@ -69,7 +70,9 @@ export function Content({ view }: { view: View }) {
 
       {view === 'board' && <BackupLinks />}
 
-      {adding && <NewIdeaDialog onClose={() => setAdding(false)} />}
+      {adding && (
+        <NewIdeaDialog onClose={() => setAdding(false)} onCreated={(v) => navigate({ name: 'video', id: v.id })} />
+      )}
     </div>
   )
 }
@@ -174,58 +177,6 @@ function PhoneList({ byStage }: { byStage: (s: Stage) => Video[] }) {
 
 const channelLabel = (v: Video) =>
   v.channel === 'youtube' ? 'YouTube · Long-form' : channelInfo(v.channel).name
-
-function NewIdeaDialog({ onClose }: { onClose: () => void }) {
-  const { addVideo } = useStore()
-  const [title, setTitle] = useState('')
-  const [channel, setChannel] = useState<Channel>('youtube')
-
-  return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <form
-        className="dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="new-idea-title"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.key === 'Escape' && onClose()}
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (!title.trim()) return
-          const v = addVideo(title.trim(), channel)
-          onClose()
-          navigate({ name: 'video', id: v.id })
-        }}
-      >
-        <h2 id="new-idea-title">New idea</h2>
-        <label className="field">
-          <span>Title</span>
-          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What's the video called?" />
-        </label>
-        <fieldset className="field">
-          <legend>Channel</legend>
-          <div className="choice-row">
-            {CHANNELS.map((c) => (
-              <label key={c.id} className={'choice' + (channel === c.id ? ' is-active' : '')}>
-                <input type="radio" name="channel" value={c.id} checked={channel === c.id} onChange={() => setChannel(c.id)} />
-                <Icon name={channelIcon(c.id)} size={16} />
-                {c.name}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <div className="dialog-actions">
-          <button type="button" className="btn-quiet" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="btn" disabled={!title.trim()}>
-            Add to Prepping
-          </button>
-        </div>
-      </form>
-    </div>
-  )
-}
 
 function BackupLinks() {
   const { importFile, exportFile } = useStore()

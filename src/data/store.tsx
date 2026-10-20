@@ -14,6 +14,7 @@ interface Store {
   moveVideo: (id: string, stage: Stage, index?: number) => void
   setThumbnail: (id: string, file: Blob | null) => Promise<void>
   deleteVideo: (id: string) => void
+  saveScript: (videoId: string, body: string) => void
   importFile: (file: File) => Promise<number>
   exportFile: () => Promise<Blob>
 }
@@ -126,6 +127,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [mutate],
   )
 
+  // Scripts are one per video; the first save creates it.
+  const saveScript = useCallback(
+    (videoId: string, body: string) =>
+      mutate((d) => {
+        const updatedAt = new Date().toISOString()
+        const existing = d.scripts.find((s) => s.videoId === videoId)
+        if (existing)
+          return { ...d, scripts: d.scripts.map((s) => (s === existing ? { ...s, body, updatedAt } : s)) }
+        const script = { id: newId(), videoId, body, updatedAt }
+        return {
+          ...d,
+          scripts: [...d.scripts, script],
+          videos: d.videos.map((v) => (v.id === videoId ? { ...v, scriptId: script.id } : v)),
+        }
+      }),
+    [mutate],
+  )
+
   const importFile = useCallback(
     async (file: File) => {
       const data = JSON.parse(await file.text()) as TakesFile
@@ -171,7 +190,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   if (!db) return null
   return (
-    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo, importFile, exportFile }}>
+    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo, saveScript, importFile, exportFile }}>
       {children}
     </StoreContext.Provider>
   )
