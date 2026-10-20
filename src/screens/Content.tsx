@@ -67,6 +67,8 @@ export function Content({ view }: { view: View }) {
         </>
       )}
 
+      {view === 'board' && <BackupLinks />}
+
       {adding && <NewIdeaDialog onClose={() => setAdding(false)} />}
     </div>
   )
@@ -221,6 +223,56 @@ function NewIdeaDialog({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+function BackupLinks() {
+  const { importFile, exportFile } = useStore()
+  const input = useRef<HTMLInputElement>(null)
+  const [message, setMessage] = useState('')
+
+  return (
+    <div className="backup">
+      <button type="button" className="btn-quiet" onClick={() => input.current?.click()}>
+        Import file
+      </button>
+      <button
+        type="button"
+        className="btn-quiet"
+        onClick={async () => {
+          const url = URL.createObjectURL(await exportFile())
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `takes-backup-${new Date().toISOString().slice(0, 10)}.takes.json`
+          a.click()
+          URL.revokeObjectURL(url)
+        }}
+      >
+        Download backup
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={async (e) => {
+          const file = e.target.files?.[0]
+          e.target.value = ''
+          if (!file) return
+          try {
+            const n = await importFile(file)
+            setMessage(`Imported ${n} ${n === 1 ? 'video' : 'videos'}.`)
+          } catch {
+            setMessage("That file couldn't be imported. Pick a .takes.json file.")
+          }
+        }}
+      />
+      {message && (
+        <span className="backup-message" role="status">
+          {message}
+        </span>
+      )}
     </div>
   )
 }

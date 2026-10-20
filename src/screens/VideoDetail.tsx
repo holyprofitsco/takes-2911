@@ -102,7 +102,14 @@ function ThumbPanel({ video }: { video: Video }) {
 function ScriptPanel({ video }: { video: Video }) {
   const { db } = useStore()
   const script = db.scripts.find((s) => s.videoId === video.id)
-  const preview = script?.body.replace(/[#*_>-]/g, '').trim().slice(0, 220)
+  // Preview the first lines of prose, skipping headings and markdown symbols.
+  const prose = script?.body
+    .split('\n')
+    .filter((l) => l.trim() && !l.trim().startsWith('#'))
+    .join(' ')
+    .replace(/[*_>]/g, '')
+    .trim()
+  const preview = prose?.slice(0, 220)
 
   return (
     <section className="panel">
@@ -123,7 +130,7 @@ function ScriptPanel({ video }: { video: Video }) {
           )}
         </div>
       </div>
-      <p className="muted-text">{preview ? preview + (script!.body.length > 220 ? '…' : '') : 'No script yet.'}</p>
+      <p className="muted-text">{preview ? preview + (prose!.length > 220 ? '…' : '') : 'No script yet.'}</p>
     </section>
   )
 }
@@ -244,6 +251,15 @@ function DetailsPanel({ video }: { video: Video }) {
         <span>{channelInfo(video.channel).format}</span>
       </div>
       <label className="detail-row">
+        <span className="detail-label">Film</span>
+        <input
+          className="inline-input"
+          type="date"
+          value={video.filmDate ?? ''}
+          onChange={(e) => updateVideo(video.id, { filmDate: e.target.value || undefined })}
+        />
+      </label>
+      <label className="detail-row">
         <span className="detail-label">Publish</span>
         <input
           className="inline-input"
@@ -251,6 +267,23 @@ function DetailsPanel({ video }: { video: Video }) {
           value={video.publishDate ?? ''}
           onChange={(e) => updateVideo(video.id, { publishDate: e.target.value || undefined })}
         />
+      </label>
+      <label className="detail-row">
+        <span className="detail-label">Link</span>
+        <span className="with-icon">
+          <input
+            className="inline-input"
+            type="url"
+            placeholder="https://youtu.be/…"
+            value={video.videoLink ?? ''}
+            onChange={(e) => updateVideo(video.id, { videoLink: e.target.value || undefined })}
+          />
+          {video.videoLink && (
+            <a href={video.videoLink} target="_blank" rel="noreferrer" className="open-link">
+              Open
+            </a>
+          )}
+        </span>
       </label>
     </section>
   )

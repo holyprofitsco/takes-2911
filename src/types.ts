@@ -12,6 +12,8 @@ export interface Video {
   scriptId?: string
   notes?: string
   publishDate?: string // YYYY-MM-DD
+  filmDate?: string // YYYY-MM-DD
+  videoLink?: string
   createdAt: string
   order: number
 }

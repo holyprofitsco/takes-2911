@@ -14,6 +14,18 @@ interface Store {
   moveVideo: (id: string, stage: Stage, index?: number) => void
   setThumbnail: (id: string, file: Blob | null) => Promise<void>
   deleteVideo: (id: string) => void
+  importFile: (file: File) => Promise<number>
+  exportFile: () => Promise<Blob>
+}
+
+// Backup / import file format. Thumbnails travel as data URLs keyed by video id.
+interface TakesFile {
+  takes: 1
+  videos: Db['videos']
+  scripts?: Db['scripts']
+  sessions?: Db['sessions']
+  stats?: Db['stats']
+  thumbnails?: Record<string, string>
 }
 
 const StoreContext = createContext<Store | null>(null)
@@ -114,9 +126,52 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [mutate],
   )
 
+  const importFile = useCallback(
+    async (file: File) => {
+      const data = JSON.parse(await file.text()) as TakesFile
+      if (data.takes !== 1 || !Array.isArray(data.videos)) throw new Error('This is not a Takes file.')
+      for (const [videoId, url] of Object.entries(data.thumbnails ?? {})) {
+        await set(thumbKey(videoId), await (await fetch(url)).blob())
+      }
+      const stamp = Date.now()
+      const incoming = data.videos.map((v) =>
+        data.thumbnails?.[v.id] ? { ...v, thumbnailPath: `${thumbKey(v.id)}@${stamp}` } : v,
+      )
+      // Same ids replace what's there, so importing the same file twice doesn't duplicate.
+      const merge = <T extends { id: string }>(old: T[], add: T[] = []) => {
+        const ids = new Set(add.map((x) => x.id))
+        return [...old.filter((x) => !ids.has(x.id)), ...add]
+      }
+      mutate((d) => ({
+        videos: merge(d.videos, incoming),
+        scripts: merge(d.scripts, data.scripts),
+        sessions: merge(d.sessions, data.sessions),
+        stats: merge(d.stats, data.stats),
+      }))
+      return incoming.length
+    },
+    [mutate],
+  )
+
+  const exportFile = useCallback(async () => {
+    const thumbnails: Record<string, string> = {}
+    for (const v of db?.videos ?? []) {
+      if (!v.thumbnailPath) continue
+      const blob = await get<Blob>(thumbKey(v.id))
+      if (blob)
+        thumbnails[v.id] = await new Promise<string>((resolve) => {
+          const r = new FileReader()
+          r.onload = () => resolve(r.result as string)
+          r.readAsDataURL(blob)
+        })
+    }
+    const out: TakesFile = { takes: 1, ...db!, thumbnails }
+    return new Blob([JSON.stringify(out)], { type: 'application/json' })
+  }, [db])
+
   if (!db) return null
   return (
-    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo }}>
+    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo, importFile, exportFile }}>
       {children}
     </StoreContext.Provider>
   )
