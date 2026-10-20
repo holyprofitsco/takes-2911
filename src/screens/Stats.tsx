@@ -182,9 +182,11 @@ function LogForm({
   const { logStat } = useStore()
   const [views, setViews] = useState(initial ? String(initial.engagedViews) : '')
   const [ret, setRet] = useState(initial ? String(initial.retentionPct) : '')
+  const [ctr, setCtr] = useState(initial?.ctrPct != null ? String(initial.ctrPct) : '')
   const viewsNum = Number(views.replace(/[,\s]/g, ''))
   const retNum = Number(ret.replace('%', ''))
-  const valid = views.trim() !== '' && ret.trim() !== '' && Number.isFinite(viewsNum) && viewsNum >= 0 && retNum >= 0 && retNum <= 100
+  const ctrNum = ctr.trim() === '' ? undefined : Number(ctr.replace('%', ''))
+  const valid = views.trim() !== '' && ret.trim() !== '' && Number.isFinite(viewsNum) && viewsNum >= 0 && retNum >= 0 && retNum <= 100 && (ctrNum === undefined || (ctrNum >= 0 && ctrNum <= 100))
   const idBase = `log-${video.id}-${checkpoint}`
 
   return (
@@ -193,7 +195,7 @@ function LogForm({
       onSubmit={(e) => {
         e.preventDefault()
         if (!valid) return
-        logStat(video.id, checkpoint, Math.round(viewsNum), Math.round(retNum * 10) / 10)
+        logStat(video.id, checkpoint, Math.round(viewsNum), Math.round(retNum * 10) / 10, ctrNum === undefined ? undefined : Math.round(ctrNum * 10) / 10)
         onDone()
       }}
     >
@@ -204,6 +206,10 @@ function LogForm({
       <label htmlFor={`${idBase}-ret`} className="log-field is-narrow">
         Retention %
         <input id={`${idBase}-ret`} inputMode="decimal" placeholder="e.g. 44" value={ret} onChange={(e) => setRet(e.target.value)} />
+      </label>
+      <label htmlFor={`${idBase}-ctr`} className="log-field is-narrow">
+        CTR % (optional)
+        <input id={`${idBase}-ctr`} inputMode="decimal" placeholder="e.g. 5.2" value={ctr} onChange={(e) => setCtr(e.target.value)} />
       </label>
       <div className="log-actions">
         <button type="button" className="btn-quiet" onClick={onDone}>

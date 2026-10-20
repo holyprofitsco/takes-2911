@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { useRef, useState, type DragEvent } from 'react'
 import { useStore, useThumbUrl } from '../data/store'
 import { href } from '../router'
-import { channelInfo, hasThumbSlot, stageInfo, type Video } from '../types'
+import { CHECKPOINTS, hasThumbSlot, stageInfo, type Video } from '../types'
 import { Icon } from '../ui/icons'
 
 const imageFrom = (e: DragEvent) => [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
@@ -9,10 +9,6 @@ const imageFrom = (e: DragEvent) => [...e.dataTransfer.files].filter((f) => f.ty
 export function Thumbnails() {
   const { db } = useStore()
   const [needsOnly, setNeedsOnly] = useState(false)
-  // Images waiting for the person to say which video they belong to.
-  const [pending, setPending] = useState<File[]>([])
-  const [dragging, setDragging] = useState(false)
-  const input = useRef<HTMLInputElement>(null)
 
   const all = db.videos.filter((v) => hasThumbSlot(v.channel))
   const needs = all.filter((v) => !v.thumbnailPath)
@@ -32,39 +28,7 @@ export function Thumbnails() {
             </button>
           </div>
         </div>
-        <button type="button" className="btn" onClick={() => input.current?.click()}>
-          <Icon name="upload" size={16} stroke={2} />
-          Upload
-        </button>
-        <input
-          ref={input}
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-          onChange={(e) => {
-            setPending([...(e.target.files ?? [])])
-            e.target.value = ''
-          }}
-        />
       </header>
-
-      <div
-        className={'drop-zone' + (dragging ? ' is-over' : '')}
-        onDragOver={(e) => {
-          e.preventDefault()
-          setDragging(true)
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault()
-          setDragging(false)
-          setPending(imageFrom(e))
-        }}
-      >
-        <Icon name="thumbnails" size={24} stroke={1.6} color="#26242A" />
-        <span>Drop images here and pick the video for each, or drop one straight onto a video. 1280 × 720 works best.</span>
-      </div>
 
       {shown.length ? (
         <div className="thumb-grid">
@@ -77,16 +41,23 @@ export function Thumbnails() {
           <p>{all.length ? 'Every video has a thumbnail.' : 'No YouTube or Shorts videos yet.'}</p>
         </div>
       )}
-
-      {pending.length > 0 && (
-        <AssignDialog file={pending[0]} left={pending.length} videos={all} onDone={() => setPending((p) => p.slice(1))} onCancel={() => setPending([])} />
-      )}
     </div>
   )
 }
 
+// The most mature click-through rate logged for a video: 28 days, else 7 days, else 24 hours.
+function useLatestCtr(video: Video) {
+  const { db } = useStore()
+  for (const c of [...CHECKPOINTS].reverse()) {
+    const s = db.stats.find((x) => x.videoId === video.id && x.checkpoint === c.id)
+    if (s?.ctrPct != null) return { pct: s.ctrPct, label: c.name }
+  }
+  return null
+}
+
 function ThumbCard({ video }: { video: Video }) {
   const { setThumbnail } = useStore()
+  const ctr = useLatestCtr(video)
   const url = useThumbUrl(video)
   const stage = stageInfo(video.stage)
   const input = useRef<HTMLInputElement>(null)
@@ -136,68 +107,15 @@ function ThumbCard({ video }: { video: Video }) {
           <span className="stage-tag is-sm" style={{ background: stage.soft, color: stage.deep }}>
             {stage.name}
           </span>
-          <span>{channelInfo(video.channel).name}</span>
+          {ctr ? (
+            <span className="ctr">
+              <strong>{ctr.pct}%</strong> CTR · {ctr.label}
+            </span>
+          ) : (
+            <span>{video.stage === 'published' ? 'No CTR logged' : 'Not published yet'}</span>
+          )}
         </span>
       </a>
-    </div>
-  )
-}
-
-// Asks which video an uploaded image is for, one image at a time.
-function AssignDialog({
-  file,
-  left,
-  videos,
-  onDone,
-  onCancel,
-}: {
-  file: File
-  left: number
-  videos: Video[]
-  onDone: () => void
-  onCancel: () => void
-}) {
-  const { setThumbnail } = useStore()
-  const preview = useMemo(() => URL.createObjectURL(file), [file])
-  useEffect(() => () => URL.revokeObjectURL(preview), [preview])
-  // Videos without a thumbnail first, since that's usually the one.
-  const ordered = [...videos].sort((a, b) => Number(!!a.thumbnailPath) - Number(!!b.thumbnailPath))
-
-  return (
-    <div className="dialog-backdrop" onClick={onCancel}>
-      <div
-        className="dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="assign-title"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-      >
-        <h2 id="assign-title">Which video is this for?</h2>
-        <img src={preview} alt="" className="assign-preview" />
-        {left > 1 && <p className="muted-text">{left - 1} more after this one.</p>}
-        <div className="assign-list">
-          {ordered.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              className="assign-option"
-              onClick={async () => {
-                await setThumbnail(v.id, file)
-                onDone()
-              }}
-            >
-              <span className="script-item-title">{v.title}</span>
-              <span className="row-sub">{v.thumbnailPath ? 'Replaces current thumbnail' : 'Needs one'}</span>
-            </button>
-          ))}
-        </div>
-        <div className="dialog-actions">
-          <button type="button" className="btn-quiet" autoFocus onClick={left > 1 ? onDone : onCancel}>
-            {left > 1 ? 'Skip' : 'Cancel'}
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

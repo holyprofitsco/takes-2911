@@ -1332,22 +1332,6 @@ textarea {
 
 /* ---------- Thumbnails ---------- */
 
-.drop-zone {
-  border: 1.5px dashed var(--dash);
-  border-radius: 10px;
-  padding: 22px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: var(--panel);
-  text-align: center;
-  font-size: 15px;
-  color: var(--ink-2);
-}
-
-.drop-zone.is-over,
 .thumb-card.is-over .thumb-img {
   border-color: var(--ink);
   background: #eae8e2;
@@ -1408,37 +1392,13 @@ textarea {
   line-height: 1.35;
 }
 
-.assign-preview {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: 10px;
-  background: var(--panel);
+.ctr {
+  font-variant-numeric: tabular-nums;
 }
 
-.assign-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 40vh;
-  overflow-y: auto;
-}
-
-.assign-option {
-  min-height: 44px;
-  text-align: left;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fff;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  cursor: pointer;
-}
-
-.assign-option:hover {
-  border-color: var(--ink);
+.ctr strong {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 /* ---------- Stats ---------- */

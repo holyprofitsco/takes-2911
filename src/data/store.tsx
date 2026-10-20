@@ -15,7 +15,7 @@ interface Store {
   setThumbnail: (id: string, file: Blob | null) => Promise<void>
   deleteVideo: (id: string) => void
   saveScript: (videoId: string, body: string) => void
-  logStat: (videoId: string, checkpoint: Checkpoint, engagedViews: number, retentionPct: number) => void
+  logStat: (videoId: string, checkpoint: Checkpoint, engagedViews: number, retentionPct: number, ctrPct?: number) => void
   importFile: (file: File) => Promise<number>
   exportFile: () => Promise<Blob>
 }
@@ -148,11 +148,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // One entry per (video, checkpoint); logging again replaces it.
   const logStat = useCallback(
-    (videoId: string, checkpoint: Checkpoint, engagedViews: number, retentionPct: number) =>
+    (videoId: string, checkpoint: Checkpoint, engagedViews: number, retentionPct: number, ctrPct?: number) =>
       mutate((d) => {
         const loggedAt = new Date().toISOString()
         const others = d.stats.filter((s) => !(s.videoId === videoId && s.checkpoint === checkpoint))
-        return { ...d, stats: [...others, { id: newId(), videoId, checkpoint, engagedViews, retentionPct, loggedAt }] }
+        return { ...d, stats: [...others, { id: newId(), videoId, checkpoint, engagedViews, retentionPct, ctrPct, loggedAt }] }
       }),
     [mutate],
   )

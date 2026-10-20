@@ -39,6 +39,7 @@ export interface StatEntry {
   checkpoint: Checkpoint
   engagedViews: number
   retentionPct: number
+  ctrPct?: number // impressions click-through rate
   loggedAt: string
 }
 
