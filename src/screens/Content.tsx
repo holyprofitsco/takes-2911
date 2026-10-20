@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react'
 import { useStore } from '../data/store'
 import { href, navigate } from '../router'
 import { CHANNELS, STAGES, channelInfo, type Channel, type Stage, type Video } from '../types'
-import { Icon, channelIcon } from '../ui/icons'
+import { Icon, channelIcon, TitleMark } from '../ui/icons'
 import { CardThumb, RowThumb } from '../ui/Thumb'
 import { NewIdeaDialog } from '../ui/NewIdeaDialog'
 import { Calendar } from './Calendar'
@@ -23,9 +23,11 @@ export function Content({ view }: { view: View }) {
     <div className="page content-page">
       <header className="content-header">
         <div className="content-title">
+          <TitleMark />
           <h1>Content</h1>
-          <label className="pill-select">
+          <label className={'pill-select channel-filter' + (filter === 'all' ? '' : ' is-filtered')}>
             <span className="visually-hidden">Channel</span>
+            <Icon name="filter" size={18} stroke={1.8} />
             <select value={filter} onChange={(e) => setFilter(e.target.value as Channel | 'all')}>
               <option value="all">All channels</option>
               {CHANNELS.map((c) => (

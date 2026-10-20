@@ -2700,3 +2700,174 @@ textarea {
 .sync-email {
   color: var(--muted);
 }
+
+/* ---------- Brand accents ---------- */
+
+:root {
+  --rose-soft: #fcf1f5;
+  --rose-line: #efc7d5;
+  --rose-text: #a8507a;
+}
+
+/* Brief: ink buttons carry rose text, like the logo's record light. */
+.btn,
+.btn-pill,
+.btn-round {
+  color: var(--rose);
+}
+
+.btn-danger {
+  color: #fff;
+}
+
+.btn-done {
+  color: #5e5a63;
+}
+
+.segmented a.is-active svg,
+.segmented button.is-active svg,
+.rail-item.is-active svg {
+  stroke: var(--rose);
+}
+
+.cal-day.is-today .cal-num {
+  color: var(--rose);
+}
+
+.log-summary-num {
+  color: var(--rose-deep);
+}
+
+.thumb-ctr-log {
+  color: var(--rose-text);
+}
+
+/* Empty thumbnail slots read as a soft pink invitation rather than a gray hole. */
+.card-thumb.is-empty,
+.row-thumb.is-empty,
+.thumb-img.is-empty,
+.thumb-panel.is-empty {
+  border-color: var(--rose-line);
+  background: var(--rose-soft);
+  color: var(--rose-text);
+}
+
+.row-thumb.is-empty svg,
+.thumb-panel.is-empty svg {
+  stroke: var(--rose-text);
+}
+
+.thumb-img.is-empty:hover {
+  border-color: var(--rose);
+}
+
+.title-mark {
+  display: none;
+}
+
+.channel-filter svg:first-of-type {
+  display: none;
+}
+
+/* ---------- Phone polish ---------- */
+
+@media (max-width: 720px) {
+  .content-header {
+    justify-content: stretch;
+  }
+
+  .title-mark {
+    display: flex;
+    flex-shrink: 0;
+    border-radius: 10px;
+  }
+
+  .content-title {
+    gap: 10px;
+  }
+
+  /* Channel filter collapses to a round icon button; a rose dot shows a filter is on. */
+  .channel-filter {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: #fff;
+  }
+
+  .channel-filter select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    opacity: 0;
+  }
+
+  .channel-filter svg:first-of-type {
+    display: block;
+    position: static;
+  }
+
+  .channel-filter svg:last-of-type {
+    display: none;
+  }
+
+  .channel-filter.is-filtered {
+    border-color: var(--rose-line);
+    background: var(--rose-soft);
+  }
+
+  .channel-filter.is-filtered::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: 9px;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--rose-deep);
+    box-shadow: 0 0 0 2px var(--rose-soft);
+  }
+
+  /* Tab bar: frosted, with a rose pill behind the active icon. */
+  .tabbar {
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: saturate(1.6) blur(16px);
+    backdrop-filter: saturate(1.6) blur(16px);
+  }
+
+  .tab {
+    gap: 4px;
+  }
+
+  .tab svg {
+    width: 56px;
+    height: 30px;
+    padding: 3px 16px;
+    border-radius: 15px;
+    box-sizing: border-box;
+  }
+
+  .tab.is-active {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .tab.is-active svg {
+    background: #f8dfe8;
+    stroke: var(--rose-text);
+  }
+
+  /* List rows: white with a hairline, so they lift off the page instead of sitting in gray. */
+  .row {
+    background: #fff;
+    border: 1px solid var(--line);
+  }
+
+  .row:active {
+    background: var(--rose-soft);
+  }
+}
