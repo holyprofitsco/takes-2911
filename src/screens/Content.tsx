@@ -13,6 +13,8 @@ export function Content({ view }: { view: View }) {
   const { db } = useStore()
   const [filter, setFilter] = useState<Channel | 'all'>('all')
   const [adding, setAdding] = useState(false)
+  const [planning, setPlanning] = useState(false)
+  const add = () => (view === 'calendar' ? setPlanning(true) : setAdding(true))
 
   const videos = db.videos.filter((v) => filter === 'all' || v.channel === filter)
   const byStage = (s: Stage) => videos.filter((v) => v.stage === s).sort((a, b) => a.order - b.order)
@@ -34,7 +36,7 @@ export function Content({ view }: { view: View }) {
             </select>
             <Icon name="chevron" size={16} color="#6F6B74" />
           </label>
-          <button type="button" className="btn-round only-phone" aria-label="New idea" onClick={() => setAdding(true)}>
+          <button type="button" className="btn-round only-phone" aria-label={view === 'calendar' ? 'Plan a day' : 'New idea'} onClick={add}>
             <Icon name="plus" size={18} stroke={2} />
           </button>
         </div>
@@ -48,14 +50,14 @@ export function Content({ view }: { view: View }) {
             Calendar
           </a>
         </nav>
-        <button type="button" className="btn not-phone" onClick={() => setAdding(true)}>
+        <button type="button" className="btn not-phone" onClick={add}>
           <Icon name="plus" size={16} stroke={2} />
-          New idea
+          {view === 'calendar' ? 'Plan a day' : 'New idea'}
         </button>
       </header>
 
       {view === 'calendar' ? (
-        <Calendar />
+        <Calendar filter={filter} planning={planning} onPlanned={() => setPlanning(false)} />
       ) : db.videos.length === 0 ? (
         <div className="placeholder">
           <h2>No videos yet</h2>

@@ -14,6 +14,7 @@ export const ICONS = {
   image: 'M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6',
   plus: 'M12 5v14M5 12h14',
   back: 'M15 6l-6 6 6 6',
+  forward: 'M9 6l6 6-6 6',
   chevron: 'M6 9l6 6 6-6',
   check: 'M5 12.5l4.5 4.5L19 7.5',
   mic: 'M9 6a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0zM5 11a7 7 0 0 0 14 0M12 18v3',

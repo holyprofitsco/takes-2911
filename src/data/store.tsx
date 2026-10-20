@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { del, get, set } from 'idb-keyval'
-import type { Channel, Checkpoint, Db, Stage, Video } from '../types'
+import type { Channel, Checkpoint, Db, Session, Stage, Task, Video } from '../types'
 
 // Local-first storage in the browser (IndexedDB). This is the single place that
 // reads and writes data, so syncing later only has to change this file.
@@ -15,6 +15,8 @@ interface Store {
   setThumbnail: (id: string, file: Blob | null) => Promise<void>
   deleteVideo: (id: string) => void
   saveScript: (videoId: string, body: string) => void
+  saveSession: (session: Omit<Session, 'id'> & { id?: string }) => void
+  deleteSession: (id: string) => void
   logStat: (videoId: string, checkpoint: Checkpoint, engagedViews: number, retentionPct: number, ctrPct?: number) => void
   importFile: (file: File) => Promise<number>
   exportFile: () => Promise<Blob>
@@ -40,6 +42,18 @@ const emptyDb = (): Db => ({ videos: [], scripts: [], sessions: [], stats: [] })
 // so these can be dropped safely.
 const PLACEHOLDER_IDS = new Set(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7'])
 
+// Sessions from before planned days could cover several videos had one videoId and ISO start/end.
+const OLD_TASKS: Record<string, Task> = { outline: 'script', record: 'film', edit: 'edit', publish: 'publish' }
+function normalizeSessions(raw: unknown[] = []): Session[] {
+  return raw.flatMap((x) => {
+    const s = x as Partial<Session> & { videoId?: string; task: string }
+    if (s.date && Array.isArray(s.videoIds)) return [s as Session]
+    const task = OLD_TASKS[s.task]
+    if (!task || !s.start) return []
+    return [{ id: s.id!, task, date: s.start.slice(0, 10), start: s.start.slice(11, 16) || undefined, end: s.end?.slice(11, 16) || undefined, videoIds: s.videoId ? [s.videoId] : [] }]
+  })
+}
+
 function dropPlaceholders(d: Db): Db {
   if (!d.videos.some((v) => PLACEHOLDER_IDS.has(v.id))) return d
   PLACEHOLDER_IDS.forEach((id) => del(thumbKey(id)))
@@ -47,7 +61,7 @@ function dropPlaceholders(d: Db): Db {
   return {
     videos: d.videos.filter((v) => !PLACEHOLDER_IDS.has(v.id)),
     scripts: d.scripts.filter(keep),
-    sessions: d.sessions.filter(keep),
+    sessions: d.sessions,
     stats: d.stats.filter(keep),
   }
 }
@@ -56,7 +70,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<Db | null>(null)
 
   useEffect(() => {
-    get<Db>(DB_KEY).then((saved) => setDb(saved ? dropPlaceholders(saved) : emptyDb()))
+    get<Db>(DB_KEY).then((saved) =>
+      setDb(saved ? dropPlaceholders({ ...saved, sessions: normalizeSessions(saved.sessions) }) : emptyDb()),
+    )
   }, [])
 
   useEffect(() => {
@@ -121,10 +137,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       mutate((d) => ({
         videos: d.videos.filter((v) => v.id !== id),
         scripts: d.scripts.filter(keep),
-        sessions: d.sessions.filter(keep),
+        sessions: d.sessions.map((s) => ({ ...s, videoIds: s.videoIds.filter((v) => v !== id) })),
         stats: d.stats.filter(keep),
       }))
     },
+    [mutate],
+  )
+
+  // A film day also sets the film date on each video it covers, so the video page agrees.
+  const saveSession = useCallback(
+    (input: Omit<Session, 'id'> & { id?: string }) =>
+      mutate((d) => {
+        const session: Session = { ...input, id: input.id ?? newId() }
+        const sessions = input.id ? d.sessions.map((s) => (s.id === input.id ? session : s)) : [...d.sessions, session]
+        const videos =
+          session.task === 'film'
+            ? d.videos.map((v) => (session.videoIds.includes(v.id) ? { ...v, filmDate: session.date } : v))
+            : d.videos
+        return { ...d, sessions, videos }
+      }),
+    [mutate],
+  )
+
+  const deleteSession = useCallback(
+    (id: string) => mutate((d) => ({ ...d, sessions: d.sessions.filter((s) => s.id !== id) })),
     [mutate],
   )
 
@@ -176,7 +212,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       mutate((d) => ({
         videos: merge(d.videos, incoming),
         scripts: merge(d.scripts, data.scripts),
-        sessions: merge(d.sessions, data.sessions),
+        sessions: merge(d.sessions, normalizeSessions(data.sessions)),
         stats: merge(d.stats, data.stats),
       }))
       return incoming.length
@@ -202,7 +238,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   if (!db) return null
   return (
-    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo, saveScript, logStat, importFile, exportFile }}>
+    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo, saveScript, saveSession, deleteSession, logStat, importFile, exportFile }}>
       {children}
     </StoreContext.Provider>
   )

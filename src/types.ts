@@ -1,6 +1,6 @@
 export type Channel = 'youtube' | 'shorts' | 'instagram'
 export type Stage = 'prepping' | 'filmed' | 'editing' | 'publishing' | 'published'
-export type Task = 'outline' | 'record' | 'edit' | 'publish' | 'live'
+export type Task = 'script' | 'film' | 'edit' | 'publish'
 export type Checkpoint = '24h' | '7d' | '28d'
 
 export interface Video {
@@ -25,12 +25,14 @@ export interface Script {
   updatedAt: string
 }
 
+// A planned work block, like a film day. One session can cover several videos (batching).
 export interface Session {
   id: string
-  videoId: string
   task: Task
-  start: string
-  end: string
+  date: string // YYYY-MM-DD
+  start?: string // HH:MM, empty means any time that day
+  end?: string // HH:MM
+  videoIds: string[]
 }
 
 export interface StatEntry {
@@ -76,3 +78,13 @@ export const CHECKPOINTS: { id: Checkpoint; name: string; days: number }[] = [
   { id: '7d', name: '7 days', days: 7 },
   { id: '28d', name: '28 days', days: 28 },
 ]
+
+// Task colors reuse the stage colors of the stage each task moves a video toward.
+export const TASKS: { id: Task; name: string; day: string; deep: string; soft: string; suggest: Stage[] }[] = [
+  { id: 'script', name: 'Script', day: 'Script day', deep: '#6A5A9E', soft: '#EEEAF6', suggest: ['prepping'] },
+  { id: 'film', name: 'Film', day: 'Film day', deep: '#44678A', soft: '#E5EDF4', suggest: ['prepping'] },
+  { id: 'edit', name: 'Edit', day: 'Edit day', deep: '#9A4D66', soft: '#F7E6EC', suggest: ['filmed', 'editing'] },
+  { id: 'publish', name: 'Publish', day: 'Publish day', deep: '#5E5A63', soft: '#F0EFF1', suggest: ['editing', 'publishing'] },
+]
+
+export const taskInfo = (t: Task) => TASKS.find((x) => x.id === t)!
