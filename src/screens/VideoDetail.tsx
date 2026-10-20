@@ -181,28 +181,32 @@ function StagePanel({ video }: { video: Video }) {
     <section className="panel stage-panel">
       <h2>Stage</h2>
       <ol className="tracker">
-        {STAGES.map((s, i) => (
-          <li key={s.id}>
-            <button
-              type="button"
-              className="tracker-step"
-              aria-current={i === cur ? 'step' : undefined}
-              onClick={() => moveVideo(video.id, s.id)}
-              style={{ background: i === cur ? s.soft : undefined }}
-            >
-              <span
-                className="tracker-dot"
-                style={{
-                  borderColor: i <= cur ? s.deep : '#DCDAE0',
-                  background: i < cur ? s.deep : i === cur ? s.soft : '#FFFFFF',
-                }}
+        {STAGES.map((s, i) => {
+          // Published is the last stage, so reaching it means it's done too.
+          const done = i < cur || (i === cur && !next)
+          return (
+            <li key={s.id}>
+              <button
+                type="button"
+                className="tracker-step"
+                aria-current={i === cur ? 'step' : undefined}
+                onClick={() => moveVideo(video.id, s.id)}
+                style={{ background: i === cur ? s.soft : undefined }}
               >
-                {i < cur && <Icon name="check" size={12} stroke={3} color="#FFFFFF" />}
-              </span>
-              <span style={{ fontWeight: i === cur ? 700 : 400, color: i > cur ? '#6F6B74' : '#26242A' }}>{s.name}</span>
-            </button>
-          </li>
-        ))}
+                <span
+                  className="tracker-dot"
+                  style={{
+                    borderColor: i <= cur ? s.deep : '#DCDAE0',
+                    background: done ? s.deep : i === cur ? s.soft : '#FFFFFF',
+                  }}
+                >
+                  {done && <Icon name="check" size={12} stroke={3} color="#FFFFFF" />}
+                </span>
+                <span style={{ fontWeight: i === cur ? 700 : 400, color: i > cur ? '#6F6B74' : '#26242A' }}>{s.name}</span>
+              </button>
+            </li>
+          )
+        })}
       </ol>
       {next ? (
         <button type="button" className="btn btn-move" onClick={() => moveVideo(video.id, next.id)}>
