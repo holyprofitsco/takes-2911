@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useStore, useThumbUrl } from '../data/store'
 import { href } from '../router'
 import { CHANNELS, CHECKPOINTS, hasThumbSlot, type Channel, type Checkpoint, type StatEntry, type Video } from '../types'
-import { Icon } from '../ui/icons'
+import { Icon, TitleMark } from '../ui/icons'
 
 const TARGET_LOW = 40
 const TARGET_HIGH = 50
@@ -56,6 +56,7 @@ export function Stats() {
     <div className="page stats-page">
       <header className="content-header">
         <div className="content-title">
+          <TitleMark />
           <h1>Stats</h1>
           <label className="pill-select">
             <span className="visually-hidden">Channel</span>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../data/store'
 import { href, navigate } from '../router'
 import { CHANNELS, channelInfo, stageInfo, type Channel, type Video } from '../types'
-import { Icon, channelIcon } from '../ui/icons'
+import { Icon, channelIcon, TitleMark } from '../ui/icons'
 import { NewIdeaDialog } from '../ui/NewIdeaDialog'
 import { ScriptEditor } from '../ui/ScriptEditor'
 
@@ -26,6 +26,7 @@ export function Scripts({ id, from }: { id?: string; from?: 'video' }) {
     <div className={'page scripts-page' + (selected ? ' has-selection' : '')}>
       <header className="content-header scripts-header">
         <div className="content-title">
+          <TitleMark />
           <h1>Scripts</h1>
           <label className="pill-select">
             <span className="visually-hidden">Channel</span>

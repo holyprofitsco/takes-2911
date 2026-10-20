@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react'
 import { useStore, useThumbUrl } from '../data/store'
 import { href } from '../router'
 import { CHECKPOINTS, hasThumbSlot, stageInfo, type StatEntry, type Video } from '../types'
-import { Icon } from '../ui/icons'
+import { Icon, TitleMark } from '../ui/icons'
 
 const imageFrom = (e: DragEvent) => [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
 
@@ -22,6 +22,7 @@ export function Thumbnails() {
     <div className="page">
       <header className="content-header">
         <div className="content-title">
+          <TitleMark />
           <h1>Thumbnails</h1>
           <div className="segmented" role="group" aria-label="Show">
             <button type="button" className={needsOnly ? '' : 'is-active'} aria-pressed={!needsOnly} onClick={() => setNeedsOnly(false)}>

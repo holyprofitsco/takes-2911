@@ -66,3 +66,12 @@ export function Logo({ size = 40 }: { size?: number }) {
     </svg>
   )
 }
+
+// Phone only: the logo mark beside each section title, since the side rail that carries it on desktop is hidden.
+export function TitleMark() {
+  return (
+    <a href="#/content" className="title-mark">
+      <Logo size={34} />
+    </a>
+  )
+}
