@@ -1231,8 +1231,8 @@ textarea {
   padding: 0 18px;
   border-radius: 999px;
   border: none;
-  background: #44678a;
-  color: #fff;
+  background: var(--ink);
+  color: var(--rose);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -1293,8 +1293,8 @@ textarea {
 .done-card {
   max-width: 420px;
   width: 100%;
-  background: #e5edf4;
-  color: #44678a;
+  background: var(--panel);
+  color: var(--ink);
   border-radius: 14px;
   padding: 28px;
   display: flex;
@@ -1302,6 +1302,10 @@ textarea {
   align-items: center;
   gap: 12px;
   text-align: center;
+}
+
+.done-card svg {
+  color: var(--rose-deep);
 }
 
 .done-card p {
