@@ -1,0 +1,120 @@
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { del, get, set } from 'idb-keyval'
+import type { Channel, Db, Stage, Video } from '../types'
+import { seedDb } from './seed'
+
+// Local-first storage in the browser (IndexedDB). This is the single place that
+// reads and writes data, so syncing later only has to change this file.
+const DB_KEY = 'takes-db-v1'
+const thumbKey = (videoId: string) => `thumb:${videoId}`
+
+interface Store {
+  db: Db
+  addVideo: (title: string, channel: Channel) => Video
+  updateVideo: (id: string, patch: Partial<Video>) => void
+  moveVideo: (id: string, stage: Stage, index?: number) => void
+  setThumbnail: (id: string, file: Blob | null) => Promise<void>
+}
+
+const StoreContext = createContext<Store | null>(null)
+
+const newId = () => Math.random().toString(36).slice(2, 10)
+
+export function StoreProvider({ children }: { children: ReactNode }) {
+  const [db, setDb] = useState<Db | null>(null)
+
+  useEffect(() => {
+    get<Db>(DB_KEY).then((saved) => setDb(saved ?? seedDb()))
+  }, [])
+
+  useEffect(() => {
+    if (db) set(DB_KEY, db)
+  }, [db])
+
+  const mutate = useCallback((fn: (d: Db) => Db) => setDb((d) => (d ? fn(d) : d)), [])
+
+  const addVideo = useCallback(
+    (title: string, channel: Channel) => {
+      const video: Video = {
+        id: newId(),
+        title,
+        channel,
+        stage: 'prepping',
+        createdAt: new Date().toISOString(),
+        order: -1,
+      }
+      mutate((d) => ({ ...d, videos: [video, ...d.videos] }))
+      return video
+    },
+    [mutate],
+  )
+
+  const updateVideo = useCallback(
+    (id: string, patch: Partial<Video>) =>
+      mutate((d) => ({ ...d, videos: d.videos.map((v) => (v.id === id ? { ...v, ...patch } : v)) })),
+    [mutate],
+  )
+
+  const moveVideo = useCallback(
+    (id: string, stage: Stage, index?: number) =>
+      mutate((d) => {
+        const moving = d.videos.find((v) => v.id === id)
+        if (!moving) return d
+        const column = d.videos
+          .filter((v) => v.stage === stage && v.id !== id)
+          .sort((a, b) => a.order - b.order)
+        column.splice(index ?? column.length, 0, { ...moving, stage })
+        const orders = new Map(column.map((v, i) => [v.id, i]))
+        return {
+          ...d,
+          videos: d.videos.map((v) => (orders.has(v.id) ? { ...v, stage, order: orders.get(v.id)! } : v)),
+        }
+      }),
+    [mutate],
+  )
+
+  const setThumbnail = useCallback(
+    async (id: string, file: Blob | null) => {
+      if (file) await set(thumbKey(id), file)
+      else await del(thumbKey(id))
+      updateVideo(id, { thumbnailPath: file ? `${thumbKey(id)}@${Date.now()}` : undefined })
+    },
+    [updateVideo],
+  )
+
+  if (!db) return null
+  return (
+    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail }}>
+      {children}
+    </StoreContext.Provider>
+  )
+}
+
+export function useStore() {
+  const store = useContext(StoreContext)
+  if (!store) throw new Error('useStore must be used inside StoreProvider')
+  return store
+}
+
+// Loads a stored thumbnail as an object URL for <img src>.
+export function useThumbUrl(video: Video) {
+  const [url, setUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!video.thumbnailPath) {
+      setUrl(null)
+      return
+    }
+    let objectUrl: string | null = null
+    let cancelled = false
+    get<Blob>(thumbKey(video.id)).then((blob) => {
+      if (cancelled || !blob) return
+      objectUrl = URL.createObjectURL(blob)
+      setUrl(objectUrl)
+    })
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [video.id, video.thumbnailPath])
+  return url
+}

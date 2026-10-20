@@ -1,0 +1,221 @@
+import { useRef, useState, type DragEvent } from 'react'
+import { useStore } from '../data/store'
+import { href, navigate } from '../router'
+import { CHANNELS, STAGES, channelInfo, type Channel, type Stage, type Video } from '../types'
+import { Icon, channelIcon } from '../ui/icons'
+import { CardThumb, RowThumb } from '../ui/Thumb'
+import { Calendar } from './Calendar'
+
+type View = 'board' | 'calendar'
+
+export function Content({ view }: { view: View }) {
+  const { db } = useStore()
+  const [filter, setFilter] = useState<Channel | 'all'>('all')
+  const [adding, setAdding] = useState(false)
+
+  const videos = db.videos.filter((v) => filter === 'all' || v.channel === filter)
+  const byStage = (s: Stage) => videos.filter((v) => v.stage === s).sort((a, b) => a.order - b.order)
+
+  return (
+    <div className="page content-page">
+      <header className="content-header">
+        <div className="content-title">
+          <h1>Content</h1>
+          <label className="pill-select">
+            <span className="visually-hidden">Channel</span>
+            <select value={filter} onChange={(e) => setFilter(e.target.value as Channel | 'all')}>
+              <option value="all">All channels</option>
+              {CHANNELS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <Icon name="chevron" size={16} color="#6F6B74" />
+          </label>
+          <button type="button" className="btn-round only-phone" aria-label="New idea" onClick={() => setAdding(true)}>
+            <Icon name="plus" size={18} stroke={2} />
+          </button>
+        </div>
+        <nav className="segmented" aria-label="Content view">
+          <a href="#/content" className={view === 'board' ? 'is-active' : ''} aria-current={view === 'board' ? 'page' : undefined}>
+            <Icon name="content" size={17} />
+            Board
+          </a>
+          <a href="#/calendar" className={view === 'calendar' ? 'is-active' : ''} aria-current={view === 'calendar' ? 'page' : undefined}>
+            <Icon name="calendar" size={17} />
+            Calendar
+          </a>
+        </nav>
+        <button type="button" className="btn not-phone" onClick={() => setAdding(true)}>
+          <Icon name="plus" size={16} stroke={2} />
+          New idea
+        </button>
+      </header>
+
+      {view === 'calendar' ? (
+        <Calendar />
+      ) : (
+        <>
+          <Board byStage={byStage} />
+          <PhoneList byStage={byStage} />
+        </>
+      )}
+
+      {adding && <NewIdeaDialog onClose={() => setAdding(false)} />}
+    </div>
+  )
+}
+
+function Board({ byStage }: { byStage: (s: Stage) => Video[] }) {
+  const { moveVideo } = useStore()
+  const dragId = useRef<string | null>(null)
+  const [over, setOver] = useState<Stage | null>(null)
+
+  const drop = (e: DragEvent, stage: Stage, index?: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setOver(null)
+    if (dragId.current) moveVideo(dragId.current, stage, index)
+    dragId.current = null
+  }
+
+  return (
+    <div className="board">
+      <div className="board-grid">
+        {STAGES.map((s) => {
+          const cards = byStage(s.id)
+          return (
+            <section
+              key={s.id}
+              className={'board-col' + (over === s.id ? ' is-over' : '')}
+              aria-label={s.name}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setOver(s.id)
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(null)
+              }}
+              onDrop={(e) => drop(e, s.id)}
+            >
+              <div className="col-head">
+                <span className="stage-tag" style={{ background: s.soft, color: s.deep }}>
+                  {s.name}
+                </span>
+                <span className="count">{cards.length}</span>
+              </div>
+              {cards.map((v, i) => (
+                <a
+                  key={v.id}
+                  href={href({ name: 'video', id: v.id })}
+                  className="card"
+                  draggable
+                  onDragStart={(e) => {
+                    dragId.current = v.id
+                    e.dataTransfer.effectAllowed = 'move'
+                  }}
+                  onDragEnd={() => setOver(null)}
+                  onDrop={(e) => drop(e, s.id, i)}
+                >
+                  <CardThumb video={v} />
+                  <span className="card-channel">
+                    <Icon name={channelIcon(v.channel)} size={15} color="#26242A" />
+                    {channelLabel(v)}
+                  </span>
+                  <span className="card-title">{v.title}</span>
+                </a>
+              ))}
+              {cards.length === 0 && <div className="col-empty">Nothing here yet</div>}
+            </section>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function PhoneList({ byStage }: { byStage: (s: Stage) => Video[] }) {
+  return (
+    <div className="phone-list">
+      {STAGES.map((s) => {
+        const items = byStage(s.id)
+        if (items.length === 0) return null
+        return (
+          <section key={s.id} className="phone-group" aria-label={s.name}>
+            <div className="col-head">
+              <span className="stage-tag" style={{ background: s.soft, color: s.deep }}>
+                {s.name}
+              </span>
+              <span className="count">{items.length}</span>
+            </div>
+            {items.map((v) => (
+              <a key={v.id} href={href({ name: 'video', id: v.id })} className="row">
+                <RowThumb video={v} />
+                <span className="row-text">
+                  <span className="row-title">{v.title}</span>
+                  <span className="row-sub">{channelInfo(v.channel).name}</span>
+                </span>
+              </a>
+            ))}
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
+const channelLabel = (v: Video) =>
+  v.channel === 'youtube' ? 'YouTube · Long-form' : channelInfo(v.channel).name
+
+function NewIdeaDialog({ onClose }: { onClose: () => void }) {
+  const { addVideo } = useStore()
+  const [title, setTitle] = useState('')
+  const [channel, setChannel] = useState<Channel>('youtube')
+
+  return (
+    <div className="dialog-backdrop" onClick={onClose}>
+      <form
+        className="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-idea-title"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!title.trim()) return
+          const v = addVideo(title.trim(), channel)
+          onClose()
+          navigate({ name: 'video', id: v.id })
+        }}
+      >
+        <h2 id="new-idea-title">New idea</h2>
+        <label className="field">
+          <span>Title</span>
+          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What's the video called?" />
+        </label>
+        <fieldset className="field">
+          <legend>Channel</legend>
+          <div className="choice-row">
+            {CHANNELS.map((c) => (
+              <label key={c.id} className={'choice' + (channel === c.id ? ' is-active' : '')}>
+                <input type="radio" name="channel" value={c.id} checked={channel === c.id} onChange={() => setChannel(c.id)} />
+                <Icon name={channelIcon(c.id)} size={16} />
+                {c.name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="dialog-actions">
+          <button type="button" className="btn-quiet" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn" disabled={!title.trim()}>
+            Add to Prepping
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
