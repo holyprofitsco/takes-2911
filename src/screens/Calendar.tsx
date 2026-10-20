@@ -105,9 +105,9 @@ export function Calendar({ filter, planning, onPlanned }: { filter: Channel | 'a
                 <span className="cal-dow">{fmt(day, { weekday: 'short' })}</span>
                 <span className="cal-num">{fmt(day, { day: 'numeric' })}</span>
                 <span className="cal-month only-phone">{fmt(day, { month: 'short' })}</span>
-                <button type="button" className="cal-add-head only-phone" onClick={() => setDraft({ date: day })} aria-label={`Plan ${fmt(day, { weekday: 'long', month: 'long', day: 'numeric' })}`}>
+                <button type="button" className="cal-add-head" onClick={() => setDraft({ date: day })} aria-label={`Plan ${fmt(day, { weekday: 'long', month: 'long', day: 'numeric' })}`}>
                   <Icon name="plus" size={14} stroke={2} />
-                  Plan
+                  <span className="only-phone">Plan</span>
                 </button>
               </h3>
               <div className="cal-items">
@@ -122,10 +122,6 @@ export function Calendar({ filter, planning, onPlanned }: { filter: Channel | 'a
                     <span className="cal-video">{v.title}</span>
                   </a>
                 ))}
-                <button type="button" className="cal-add not-phone" onClick={() => setDraft({ date: day })} aria-label={`Plan ${fmt(day, { weekday: 'long', month: 'long', day: 'numeric' })}`}>
-                  <Icon name="plus" size={14} stroke={2} />
-                  Plan
-                </button>
               </div>
             </section>
           )

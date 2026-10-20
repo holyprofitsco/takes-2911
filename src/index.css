@@ -2323,7 +2323,6 @@ textarea {
 
 .cal-day {
   background: #fff;
-  min-height: 420px;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -2364,8 +2363,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 0 8px 10px;
-  flex: 1;
+  padding: 0 8px 8px;
 }
 
 .cal-card {
@@ -2432,27 +2430,6 @@ textarea {
   color: var(--muted);
 }
 
-.cal-add {
-  margin-top: auto;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  border: 1px dashed transparent;
-  border-radius: 10px;
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.cal-add:hover,
-.cal-add:focus-visible {
-  border-color: var(--dash);
-  color: var(--ink);
-}
 
 .plan {
   max-width: 560px;
@@ -2572,10 +2549,6 @@ textarea {
     gap: 6px;
   }
 
-  .cal-add {
-    justify-content: flex-start;
-    padding: 0 4px;
-  }
 
   .cal-legend {
     display: none;
@@ -2615,9 +2588,6 @@ textarea {
     color: var(--muted);
   }
 
-  .cal-add {
-    display: none;
-  }
 
   .cal-items:not(:has(.cal-card)) {
     display: none;
@@ -2626,4 +2596,35 @@ textarea {
   .cal-items {
     padding-bottom: 12px;
   }
+}
+
+.cal-add-head {
+  margin: -8px -6px -8px auto;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  border-radius: 22px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cal-add-head:hover,
+.cal-add-head:focus-visible {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.cal-day-head {
+  align-items: center;
+}
+
+.cal-items:not(:has(.cal-card)) {
+  display: none;
 }
