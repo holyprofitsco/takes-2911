@@ -1,6 +1,7 @@
 export type Channel = 'youtube' | 'shorts' | 'instagram'
 export type Stage = 'prepping' | 'filmed' | 'editing' | 'publishing' | 'published'
 export type Task = 'script' | 'film' | 'edit' | 'publish'
+// '7d' is no longer tracked, but older entries logged at 7 days are kept in the data.
 export type Checkpoint = '24h' | '7d' | '28d'
 
 export interface Video {
@@ -39,11 +40,23 @@ export interface StatEntry {
   id: string
   videoId: string
   checkpoint: Checkpoint
-  engagedViews: number
-  retentionPct: number
+  engagedViews?: number
   ctrPct?: number // impressions click-through rate
+  retentionPct?: number // average percentage viewed (AVP); was called retention before
+  shares?: number
+  follows?: number
   loggedAt: string
 }
+
+export type StatNumbers = Pick<StatEntry, 'engagedViews' | 'ctrPct' | 'retentionPct' | 'shares' | 'follows'>
+
+export const METRICS: { key: keyof StatNumbers; name: string; short: string; pct: boolean; example: string }[] = [
+  { key: 'engagedViews', name: 'Engaged views', short: 'Views', pct: false, example: '1,020' },
+  { key: 'ctrPct', name: 'CTR', short: 'CTR', pct: true, example: '5.2' },
+  { key: 'retentionPct', name: 'AVP', short: 'AVP', pct: true, example: '44' },
+  { key: 'shares', name: 'Shares', short: 'Shares', pct: false, example: '12' },
+  { key: 'follows', name: 'Follows', short: 'Follows', pct: false, example: '3' },
+]
 
 export interface Db {
   videos: Video[]
@@ -75,7 +88,6 @@ export const hasThumbSlot = (c: Channel) => c !== 'instagram'
 
 export const CHECKPOINTS: { id: Checkpoint; name: string; days: number }[] = [
   { id: '24h', name: '24 hours', days: 1 },
-  { id: '7d', name: '7 days', days: 7 },
   { id: '28d', name: '28 days', days: 28 },
 ]
 

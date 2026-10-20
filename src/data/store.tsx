@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { del, get, set } from 'idb-keyval'
-import type { Channel, Checkpoint, Db, Session, Stage, Task, Video } from '../types'
+import type { Channel, Checkpoint, Db, Session, Stage, StatNumbers, Task, Video } from '../types'
 import { thumbKey, useCloudSync, type SyncStatus } from './cloud'
 import { SignIn } from '../screens/SignIn'
 
@@ -20,7 +20,7 @@ interface Store {
   saveScript: (videoId: string, body: string) => void
   saveSession: (session: Omit<Session, 'id'> & { id?: string }) => void
   deleteSession: (id: string) => void
-  logStat: (videoId: string, checkpoint: Checkpoint, engagedViews: number, retentionPct: number, ctrPct?: number) => void
+  logStat: (videoId: string, checkpoint: Checkpoint, numbers: StatNumbers) => void
   importFile: (file: File) => Promise<number>
   exportFile: () => Promise<Blob>
 }
@@ -192,11 +192,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // One entry per (video, checkpoint); logging again replaces it.
   const logStat = useCallback(
-    (videoId: string, checkpoint: Checkpoint, engagedViews: number, retentionPct: number, ctrPct?: number) =>
+    (videoId: string, checkpoint: Checkpoint, numbers: StatNumbers) =>
       mutate((d) => {
         const loggedAt = new Date().toISOString()
         const others = d.stats.filter((s) => !(s.videoId === videoId && s.checkpoint === checkpoint))
-        return { ...d, stats: [...others, { id: newId(), videoId, checkpoint, engagedViews, retentionPct, ctrPct, loggedAt }] }
+        return { ...d, stats: [...others, { id: newId(), videoId, checkpoint, ...numbers, loggedAt }] }
       }),
     [mutate],
   )
