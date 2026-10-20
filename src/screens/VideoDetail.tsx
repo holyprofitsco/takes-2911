@@ -1,5 +1,6 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useStore, useThumbUrl } from '../data/store'
+import { navigate } from '../router'
 import { CHECKPOINTS, CHANNELS, STAGES, channelInfo, hasThumbSlot, stageInfo, type Channel, type Video } from '../types'
 import { Icon, channelIcon } from '../ui/icons'
 
@@ -37,6 +38,7 @@ export function VideoDetail({ id }: { id: string }) {
           <StagePanel video={video} />
           <DetailsPanel video={video} />
           <NotesPanel video={video} />
+          <DeleteVideo video={video} />
         </div>
       </div>
     </div>
@@ -270,5 +272,38 @@ function NotesPanel({ video }: { video: Video }) {
         onChange={(e) => updateVideo(video.id, { notes: e.target.value })}
       />
     </section>
+  )
+}
+
+function DeleteVideo({ video }: { video: Video }) {
+  const { deleteVideo } = useStore()
+  const [confirming, setConfirming] = useState(false)
+
+  if (!confirming)
+    return (
+      <button type="button" className="btn-delete" onClick={() => setConfirming(true)}>
+        <Icon name="trash" size={16} />
+        Delete video
+      </button>
+    )
+  return (
+    <div className="delete-confirm" role="alertdialog" aria-labelledby="delete-q">
+      <p id="delete-q">Delete this video? Its script, notes, thumbnail and stats go too. This can't be undone.</p>
+      <div className="delete-actions">
+        <button type="button" className="btn-quiet" autoFocus onClick={() => setConfirming(false)}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn-danger"
+          onClick={() => {
+            deleteVideo(video.id)
+            navigate({ name: 'content' })
+          }}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
   )
 }

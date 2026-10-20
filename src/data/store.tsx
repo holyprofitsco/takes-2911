@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { del, get, set } from 'idb-keyval'
 import type { Channel, Db, Stage, Video } from '../types'
-import { seedDb } from './seed'
 
 // Local-first storage in the browser (IndexedDB). This is the single place that
 // reads and writes data, so syncing later only has to change this file.
@@ -14,17 +13,36 @@ interface Store {
   updateVideo: (id: string, patch: Partial<Video>) => void
   moveVideo: (id: string, stage: Stage, index?: number) => void
   setThumbnail: (id: string, file: Blob | null) => Promise<void>
+  deleteVideo: (id: string) => void
 }
 
 const StoreContext = createContext<Store | null>(null)
 
 const newId = () => Math.random().toString(36).slice(2, 10)
 
+const emptyDb = (): Db => ({ videos: [], scripts: [], sessions: [], stats: [] })
+
+// The first build seeded placeholder videos with ids v1–v7. Real videos get random ids,
+// so these can be dropped safely.
+const PLACEHOLDER_IDS = new Set(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7'])
+
+function dropPlaceholders(d: Db): Db {
+  if (!d.videos.some((v) => PLACEHOLDER_IDS.has(v.id))) return d
+  PLACEHOLDER_IDS.forEach((id) => del(thumbKey(id)))
+  const keep = (x: { videoId: string }) => !PLACEHOLDER_IDS.has(x.videoId)
+  return {
+    videos: d.videos.filter((v) => !PLACEHOLDER_IDS.has(v.id)),
+    scripts: d.scripts.filter(keep),
+    sessions: d.sessions.filter(keep),
+    stats: d.stats.filter(keep),
+  }
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<Db | null>(null)
 
   useEffect(() => {
-    get<Db>(DB_KEY).then((saved) => setDb(saved ?? seedDb()))
+    get<Db>(DB_KEY).then((saved) => setDb(saved ? dropPlaceholders(saved) : emptyDb()))
   }, [])
 
   useEffect(() => {
@@ -82,9 +100,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [updateVideo],
   )
 
+  const deleteVideo = useCallback(
+    (id: string) => {
+      del(thumbKey(id))
+      const keep = (x: { videoId: string }) => x.videoId !== id
+      mutate((d) => ({
+        videos: d.videos.filter((v) => v.id !== id),
+        scripts: d.scripts.filter(keep),
+        sessions: d.sessions.filter(keep),
+        stats: d.stats.filter(keep),
+      }))
+    },
+    [mutate],
+  )
+
   if (!db) return null
   return (
-    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail }}>
+    <StoreContext.Provider value={{ db, addVideo, updateVideo, moveVideo, setThumbnail, deleteVideo }}>
       {children}
     </StoreContext.Provider>
   )

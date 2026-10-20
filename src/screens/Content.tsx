@@ -55,6 +55,11 @@ export function Content({ view }: { view: View }) {
 
       {view === 'calendar' ? (
         <Calendar />
+      ) : db.videos.length === 0 ? (
+        <div className="placeholder">
+          <h2>No videos yet</h2>
+          <p>Add your first idea with the New idea button. It starts in Prepping.</p>
+        </div>
       ) : (
         <>
           <Board byStage={byStage} />

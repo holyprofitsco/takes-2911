@@ -838,6 +838,51 @@ textarea {
   resize: vertical;
 }
 
+.btn-delete {
+  align-self: flex-start;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  color: #9e3b3b;
+  cursor: pointer;
+}
+
+.btn-delete:hover {
+  background: #f8eaea;
+}
+
+.delete-confirm {
+  border: 1px solid #ecd2d2;
+  background: #fcf4f4;
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 15px;
+}
+
+.delete-confirm p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-danger {
+  background: #9e3b3b;
+}
+
 /* ---------- Phone ---------- */
 
 @media (max-width: 720px) {

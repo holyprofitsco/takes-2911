@@ -15,4 +15,4 @@ Every push to `main` builds the app and publishes it to GitHub Pages (`.github/w
 
 ## Data
 
-For now data lives in the browser (IndexedDB), seeded with the current videos on first load. All reads and writes go through `src/data/store.tsx`, which is where Supabase sync will plug in.
+For now data lives in the browser (IndexedDB). All reads and writes go through `src/data/store.tsx`, which is where Supabase sync will plug in.
