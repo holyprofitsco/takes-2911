@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useStore, useThumbUrl } from '../data/store'
 import { href, navigate } from '../router'
-import { CHECKPOINTS, CHANNELS, STAGES, channelInfo, hasThumbSlot, stageInfo, type Channel, type Video } from '../types'
+import { CHECKPOINTS, CHANNELS, METRICS, STAGES, channelInfo, hasThumbSlot, stageInfo, type Channel, type Video } from '../types'
 import { Icon, channelIcon } from '../ui/icons'
 
 export function VideoDetail({ id }: { id: string }) {
@@ -153,9 +153,11 @@ function StatsPanel({ video }: { video: Video }) {
               <span className="label">{c.name}</span>
               {e ? (
                 <>
-                  <span className="value">{e.engagedViews.toLocaleString()} views</span>
+                  <span className="value">{e.engagedViews != null ? `${e.engagedViews.toLocaleString()} views` : 'Logged'}</span>
                   <span className="label">
-                    {e.retentionPct}% retention{e.ctrPct != null && ` · ${e.ctrPct}% CTR`}
+                    {METRICS.filter((m) => m.key !== 'engagedViews' && e[m.key] != null)
+                      .map((m) => (m.pct ? `${e[m.key]}% ${m.short}` : `${e[m.key]!.toLocaleString()} ${m.short.toLowerCase()}`))
+                      .join(' · ')}
                   </span>
                 </>
               ) : (
@@ -167,7 +169,7 @@ function StatsPanel({ video }: { video: Video }) {
       </div>
       {video.stage !== 'published' && (
         <p className="muted-text">
-          Stats start once it's published. You'll see it in Stats when it's time to log engaged views and retention.
+          Stats start once it's published. You'll see it in Stats when it's time to log engaged views, CTR, AVP, shares and follows.
         </p>
       )}
     </section>

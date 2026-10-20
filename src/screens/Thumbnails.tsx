@@ -1,7 +1,7 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { useStore, useThumbUrl } from '../data/store'
 import { href } from '../router'
-import { CHECKPOINTS, hasThumbSlot, stageInfo, type StatEntry, type Video } from '../types'
+import { hasThumbSlot, stageInfo, type StatEntry, type Video } from '../types'
 import { Icon, TitleMark } from '../ui/icons'
 
 const imageFrom = (e: DragEvent) => [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
@@ -50,9 +50,14 @@ export function Thumbnails() {
   )
 }
 
-// The most mature click-through rate logged for a video: 28 days, else 7 days, else 24 hours.
+// The most mature click-through rate logged for a video: 28 days, else an older 7 day entry, else 24 hours.
+const CTR_ORDER = [
+  { id: '28d', name: '28 days' },
+  { id: '7d', name: '7 days' },
+  { id: '24h', name: '24 hours' },
+] as const
 function latestCtr(stats: StatEntry[], video: Video) {
-  for (const c of [...CHECKPOINTS].reverse()) {
+  for (const c of CTR_ORDER) {
     const s = stats.find((x) => x.videoId === video.id && x.checkpoint === c.id)
     if (s?.ctrPct != null) return { pct: s.ctrPct, label: c.name }
   }

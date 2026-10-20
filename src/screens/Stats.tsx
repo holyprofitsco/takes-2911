@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useStore, useThumbUrl } from '../data/store'
 import { href } from '../router'
-import { CHANNELS, CHECKPOINTS, hasThumbSlot, type Channel, type Checkpoint, type StatEntry, type Video } from '../types'
+import { CHANNELS, CHECKPOINTS, METRICS, hasThumbSlot, type Channel, type Checkpoint, type StatEntry, type StatNumbers, type Video } from '../types'
 import { Icon, TitleMark } from '../ui/icons'
 
 const TARGET_LOW = 40
@@ -32,6 +32,44 @@ const dueLabel = (due: string) => {
 
 const fmtViews = (n?: number) => (n == null ? '—' : n.toLocaleString('en-US'))
 const fmtPct = (n?: number) => (n == null ? '—' : `${n}%`)
+
+type StatDraft = Record<keyof StatNumbers, string>
+
+const draftFrom = (s?: StatEntry): StatDraft =>
+  Object.fromEntries(METRICS.map((m) => [m.key, s?.[m.key] != null ? String(s[m.key]) : ''])) as StatDraft
+
+// Every number is optional, but at least one has to be filled in. Percentages stay within 0–100.
+function parseDraft(draft: StatDraft): StatNumbers | null {
+  const out: StatNumbers = {}
+  for (const m of METRICS) {
+    const raw = draft[m.key].replace(/[,\s%]/g, '')
+    if (raw === '') continue
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n < 0 || (m.pct && n > 100)) return null
+    out[m.key] = m.pct ? Math.round(n * 10) / 10 : Math.round(n)
+  }
+  return Object.keys(out).length ? out : null
+}
+
+function StatFields({ draft, onChange, idBase }: { draft: StatDraft; onChange: (d: StatDraft) => void; idBase: string }) {
+  return (
+    <>
+      {METRICS.map((m, i) => (
+        <label key={m.key} htmlFor={`${idBase}-${m.key}`} className="log-field">
+          {m.pct ? `${m.name} %` : m.name}
+          <input
+            id={`${idBase}-${m.key}`}
+            inputMode={m.pct ? 'decimal' : 'numeric'}
+            placeholder={`e.g. ${m.example}`}
+            value={draft[m.key]}
+            onChange={(e) => onChange({ ...draft, [m.key]: e.target.value })}
+            autoFocus={i === 0}
+          />
+        </label>
+      ))}
+    </>
+  )
+}
 
 interface Episode {
   video: Video
@@ -169,21 +207,13 @@ function LogWalkthrough({ queue, onClose }: { queue: DueItem[]; onClose: () => v
   const { logStat, setThumbnail } = useStore()
   const [i, setI] = useState(0)
   const [saved, setSaved] = useState(0)
-  const [views, setViews] = useState('')
-  const [ret, setRet] = useState('')
-  const [ctr, setCtr] = useState('')
+  const [draft, setDraft] = useState(draftFrom)
   const item = queue[i]
   const done = i >= queue.length
-
-  const viewsNum = Number(views.replace(/[,\s]/g, ''))
-  const retNum = Number(ret.replace('%', ''))
-  const ctrNum = ctr.trim() === '' ? undefined : Number(ctr.replace('%', ''))
-  const valid = views.trim() !== '' && ret.trim() !== '' && Number.isFinite(viewsNum) && viewsNum >= 0 && retNum >= 0 && retNum <= 100 && (ctrNum === undefined || (ctrNum >= 0 && ctrNum <= 100))
+  const numbers = parseDraft(draft)
 
   const advance = () => {
-    setViews('')
-    setRet('')
-    setCtr('')
+    setDraft(draftFrom())
     setI((n) => n + 1)
   }
 
@@ -227,31 +257,21 @@ function LogWalkthrough({ queue, onClose }: { queue: DueItem[]; onClose: () => v
               className="walk-form"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (!valid) return
-                logStat(item.video.id, item.checkpoint.id, Math.round(viewsNum), Math.round(retNum * 10) / 10, ctrNum === undefined ? undefined : Math.round(ctrNum * 10) / 10)
+                if (!numbers) return
+                logStat(item.video.id, item.checkpoint.id, numbers)
                 setSaved((n) => n + 1)
                 advance()
               }}
             >
               <div className="walk-fields">
-                <label className="log-field">
-                  Engaged views
-                  <input inputMode="numeric" placeholder="e.g. 1,020" value={views} onChange={(e) => setViews(e.target.value)} autoFocus />
-                </label>
-                <label className="log-field">
-                  Retention %
-                  <input inputMode="decimal" placeholder="e.g. 44" value={ret} onChange={(e) => setRet(e.target.value)} />
-                </label>
-                <label className="log-field">
-                  CTR %
-                  <input inputMode="decimal" placeholder="Optional" value={ctr} onChange={(e) => setCtr(e.target.value)} />
-                </label>
+                <StatFields key={i} draft={draft} onChange={setDraft} idBase={`walk-${item.video.id}`} />
               </div>
+              <p className="row-sub">Fill in what you have. Blank boxes are fine.</p>
               <div className="walk-actions">
                 <button type="button" className="btn-quiet" onClick={advance}>
                   Skip for now
                 </button>
-                <button type="submit" className="btn" disabled={!valid}>
+                <button type="submit" className="btn" disabled={!numbers}>
                   {i === queue.length - 1 ? 'Save and finish' : 'Save and next'}
                 </button>
               </div>
@@ -323,13 +343,8 @@ function LogForm({
   onDone: () => void
 }) {
   const { logStat } = useStore()
-  const [views, setViews] = useState(initial ? String(initial.engagedViews) : '')
-  const [ret, setRet] = useState(initial ? String(initial.retentionPct) : '')
-  const [ctr, setCtr] = useState(initial?.ctrPct != null ? String(initial.ctrPct) : '')
-  const viewsNum = Number(views.replace(/[,\s]/g, ''))
-  const retNum = Number(ret.replace('%', ''))
-  const ctrNum = ctr.trim() === '' ? undefined : Number(ctr.replace('%', ''))
-  const valid = views.trim() !== '' && ret.trim() !== '' && Number.isFinite(viewsNum) && viewsNum >= 0 && retNum >= 0 && retNum <= 100 && (ctrNum === undefined || (ctrNum >= 0 && ctrNum <= 100))
+  const [draft, setDraft] = useState(() => draftFrom(initial))
+  const numbers = parseDraft(draft)
   const idBase = `log-${video.id}-${checkpoint}`
 
   return (
@@ -337,28 +352,19 @@ function LogForm({
       className="log-form"
       onSubmit={(e) => {
         e.preventDefault()
-        if (!valid) return
-        logStat(video.id, checkpoint, Math.round(viewsNum), Math.round(retNum * 10) / 10, ctrNum === undefined ? undefined : Math.round(ctrNum * 10) / 10)
+        if (!numbers) return
+        logStat(video.id, checkpoint, numbers)
         onDone()
       }}
     >
-      <label htmlFor={`${idBase}-views`} className="log-field">
-        Engaged views
-        <input id={`${idBase}-views`} inputMode="numeric" placeholder="e.g. 1,020" value={views} onChange={(e) => setViews(e.target.value)} autoFocus />
-      </label>
-      <label htmlFor={`${idBase}-ret`} className="log-field is-narrow">
-        Retention %
-        <input id={`${idBase}-ret`} inputMode="decimal" placeholder="e.g. 44" value={ret} onChange={(e) => setRet(e.target.value)} />
-      </label>
-      <label htmlFor={`${idBase}-ctr`} className="log-field is-narrow">
-        CTR % (optional)
-        <input id={`${idBase}-ctr`} inputMode="decimal" placeholder="e.g. 5.2" value={ctr} onChange={(e) => setCtr(e.target.value)} />
-      </label>
+      <div className="walk-fields">
+        <StatFields draft={draft} onChange={setDraft} idBase={idBase} />
+      </div>
       <div className="log-actions">
         <button type="button" className="btn-quiet" onClick={onDone}>
           Cancel
         </button>
-        <button type="submit" className="btn" disabled={!valid}>
+        <button type="submit" className="btn" disabled={!numbers}>
           Save
         </button>
       </div>
@@ -430,10 +436,13 @@ function RetentionPanel({ episodes }: { episodes: Episode[] }) {
   return (
     <section className="retention-card" aria-labelledby="ret-title">
       <div className="chart-head">
-        <h2 id="ret-title" className="section-title">
-          Retention
-        </h2>
-        <CheckpointPicker value={cp} onChange={setCp} label="Retention checkpoint" />
+        <div className="ready-text">
+          <h2 id="ret-title" className="section-title">
+            AVP
+          </h2>
+          <span className="row-sub">Average percentage viewed</span>
+        </div>
+        <CheckpointPicker value={cp} onChange={setCp} label="AVP checkpoint" />
       </div>
       <div className="ret-summary">
         <div className="ready-text">
@@ -469,11 +478,11 @@ function RetentionPanel({ episodes }: { episodes: Episode[] }) {
 
 function StatsTable({ episodes }: { episodes: Episode[] }) {
   const [editing, setEditing] = useState<{ video: Video; checkpoint: Checkpoint } | null>(null)
-  const cell = (e: Episode, c: Checkpoint, kind: 'views' | 'ret' | 'ctr') => {
-    const s = e.stats[c]
-    const text = kind === 'views' ? fmtViews(s?.engagedViews) : fmtPct(kind === 'ret' ? s?.retentionPct : s?.ctrPct)
+  const cell = (e: Episode, c: Checkpoint, m: (typeof METRICS)[number]) => {
+    const v = e.stats[c]?.[m.key]
+    const text = m.pct ? fmtPct(v) : fmtViews(v)
     return (
-      <td key={c + kind}>
+      <td key={c + m.key}>
         <button type="button" className="cell-btn" onClick={() => setEditing({ video: e.video, checkpoint: c })} aria-label={`Edit ${c} numbers for ${e.video.title}`}>
           {text}
         </button>
@@ -491,15 +500,13 @@ function StatsTable({ episodes }: { episodes: Episode[] }) {
           <thead>
             <tr>
               <th scope="col">Video</th>
-              <th scope="col">Views 24h</th>
-              <th scope="col">Views 7d</th>
-              <th scope="col">Views 28d</th>
-              <th scope="col">Retention 24h</th>
-              <th scope="col">Retention 7d</th>
-              <th scope="col">Retention 28d</th>
-              <th scope="col">CTR 24h</th>
-              <th scope="col">CTR 7d</th>
-              <th scope="col">CTR 28d</th>
+              {METRICS.flatMap((m) =>
+                CHECKPOINTS.map((c) => (
+                  <th key={m.key + c.id} scope="col">
+                    {m.short} {c.id}
+                  </th>
+                )),
+              )}
             </tr>
           </thead>
           <tbody>
@@ -509,9 +516,7 @@ function StatsTable({ episodes }: { episodes: Episode[] }) {
                   <a href={href({ name: 'video', id: e.video.id })}>{e.video.title}</a>
                   <span className="row-sub">{shortDate(e.video.publishDate!)}</span>
                 </th>
-                {CHECKPOINTS.map((c) => cell(e, c.id, 'views'))}
-                {CHECKPOINTS.map((c) => cell(e, c.id, 'ret'))}
-                {CHECKPOINTS.map((c) => cell(e, c.id, 'ctr'))}
+                {METRICS.flatMap((m) => CHECKPOINTS.map((c) => cell(e, c.id, m)))}
               </tr>
             ))}
           </tbody>
