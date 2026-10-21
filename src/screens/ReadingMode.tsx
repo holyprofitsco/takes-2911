@@ -95,7 +95,7 @@ export function ReadingMode({ id, from }: { id: string; from?: 'video' }) {
             className="btn-filmed"
             onClick={() => {
               // Only move forward: a video already past Filmed stays where it is.
-              if (video.stage === 'prepping') moveVideo(id, 'filmed')
+              if (video.stage === 'backlog' || video.stage === 'prepping') moveVideo(id, 'filmed')
               setDone(true)
             }}
           >

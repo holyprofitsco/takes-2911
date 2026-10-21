@@ -63,7 +63,7 @@ export function Content({ view }: { view: View }) {
       ) : db.videos.length === 0 ? (
         <div className="placeholder">
           <h2>No videos yet</h2>
-          <p>Add your first idea with the New idea button. It starts in Prepping.</p>
+          <p>Add your first idea with the New idea button. It starts in Backlog.</p>
         </div>
       ) : (
         <>

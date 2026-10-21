@@ -72,6 +72,7 @@ export function Scripts({ id, from }: { id?: string; from?: 'video' }) {
       {adding && (
         <NewIdeaDialog
           submitLabel="Create script"
+          stage="prepping"
           onClose={() => setAdding(false)}
           onCreated={(v) => navigate({ name: 'scripts', id: v.id })}
         />
