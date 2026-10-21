@@ -12,7 +12,7 @@ interface Store {
   db: Db
   sync: { status: SyncStatus; email?: string; signOut: () => Promise<void> }
   thumbVersion: number // bumped when thumbnails arrive from another device, so images reload
-  addVideo: (title: string, channel: Channel) => Video
+  addVideo: (title: string, channel: Channel, stage?: Stage) => Video
   updateVideo: (id: string, patch: Partial<Video>) => void
   moveVideo: (id: string, stage: Stage, index?: number) => void
   setThumbnail: (id: string, file: Blob | null) => Promise<void>
@@ -88,12 +88,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const mutate = useCallback((fn: (d: Db) => Db) => setDb((d) => (d ? fn(d) : d)), [])
 
   const addVideo = useCallback(
-    (title: string, channel: Channel) => {
+    (title: string, channel: Channel, stage: Stage = 'backlog') => {
       const video: Video = {
         id: newId(),
         title,
         channel,
-        stage: 'prepping',
+        stage,
         createdAt: new Date().toISOString(),
         order: -1,
       }

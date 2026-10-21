@@ -324,9 +324,9 @@ textarea {
 }
 
 .board-grid {
-  min-width: 960px;
+  min-width: 1140px;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 14px;
   align-items: start;
 }

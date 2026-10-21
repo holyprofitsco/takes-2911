@@ -1,5 +1,5 @@
 export type Channel = 'youtube' | 'shorts' | 'instagram'
-export type Stage = 'prepping' | 'filmed' | 'editing' | 'publishing' | 'published'
+export type Stage = 'backlog' | 'prepping' | 'filmed' | 'editing' | 'publishing' | 'published'
 export type Task = 'script' | 'film' | 'edit' | 'publish'
 // '7d' is no longer tracked, but older entries logged at 7 days are kept in the data.
 export type Checkpoint = '24h' | '7d' | '28d'
@@ -66,6 +66,7 @@ export interface Db {
 }
 
 export const STAGES: { id: Stage; name: string; deep: string; soft: string }[] = [
+  { id: 'backlog', name: 'Backlog', deep: '#3F7470', soft: '#E2EFED' },
   { id: 'prepping', name: 'Prepping', deep: '#6A5A9E', soft: '#EEEAF6' },
   { id: 'filmed', name: 'Filmed', deep: '#44678A', soft: '#E5EDF4' },
   { id: 'editing', name: 'Editing', deep: '#9A4D66', soft: '#F7E6EC' },
@@ -93,7 +94,7 @@ export const CHECKPOINTS: { id: Checkpoint; name: string; days: number }[] = [
 
 // Task colors reuse the stage colors of the stage each task moves a video toward.
 export const TASKS: { id: Task; name: string; day: string; deep: string; soft: string; suggest: Stage[] }[] = [
-  { id: 'script', name: 'Script', day: 'Script day', deep: '#6A5A9E', soft: '#EEEAF6', suggest: ['prepping'] },
+  { id: 'script', name: 'Script', day: 'Script day', deep: '#6A5A9E', soft: '#EEEAF6', suggest: ['backlog', 'prepping'] },
   { id: 'film', name: 'Film', day: 'Film day', deep: '#44678A', soft: '#E5EDF4', suggest: ['prepping'] },
   { id: 'edit', name: 'Edit', day: 'Edit day', deep: '#9A4D66', soft: '#F7E6EC', suggest: ['filmed', 'editing'] },
   { id: 'publish', name: 'Publish', day: 'Publish day', deep: '#5E5A63', soft: '#F0EFF1', suggest: ['editing', 'publishing'] },

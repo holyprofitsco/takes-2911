@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { useStore } from '../data/store'
-import { CHANNELS, type Channel, type Video } from '../types'
+import { CHANNELS, type Channel, type Stage, type Video } from '../types'
 import { Icon, channelIcon } from './icons'
 
 export function NewIdeaDialog({
   onClose,
   onCreated,
-  submitLabel = 'Add to Prepping',
+  submitLabel = 'Add to Backlog',
+  stage,
 }: {
   onClose: () => void
   onCreated: (v: Video) => void
   submitLabel?: string
+  stage?: Stage
 }) {
   const { addVideo } = useStore()
   const [title, setTitle] = useState('')
@@ -28,7 +30,7 @@ export function NewIdeaDialog({
         onSubmit={(e) => {
           e.preventDefault()
           if (!title.trim()) return
-          const v = addVideo(title.trim(), channel)
+          const v = addVideo(title.trim(), channel, stage)
           onClose()
           onCreated(v)
         }}
